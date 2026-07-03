@@ -1,0 +1,117 @@
+{% extends "base_public.html" %}
+
+{% load static %}
+
+{% block title %}Login{% endblock %}
+
+
+
+{% block content %}
+
+  <div class="row justify-content-center align-items-center min-vh-75">
+
+    <div class="col-12 col-md-7 col-lg-5">
+
+      <div class="glass card border-0">
+
+        <div class="card-body p-4 p-md-5">
+
+          <div class="text-center mb-4">
+
+            {% include "includes/brand.html" with variant="default" %}
+
+            <div class="text-muted small text-uppercase fw-semibold mt-3" style="letter-spacing:0.08em;font-size:0.72rem;">Welcome back</div>
+
+            <h1 class="h4 mb-0 fw-bold mt-1">
+
+              {% if request.path|slice:":5" == "/ceo/" %}CEO Login
+              {% elif request.path|slice:":10" == "/director/" %}Director Login
+              {% elif request.path|slice:":4" == "/hr/" %}HR Admin Login
+              {% else %}Employee Login{% endif %}
+
+            </h1>
+
+          </div>
+
+
+
+          {% if form.non_field_errors %}
+
+            <div class="alert alert-danger border-0">{{ form.non_field_errors|striptags }}</div>
+
+          {% elif form.errors %}
+
+            <div class="alert alert-danger border-0">Invalid Employee ID or password.</div>
+
+          {% endif %}
+
+          {% include "includes/office_verification_notice.html" %}
+
+          <form method="post" novalidate class="{% if office_verification_required %}js-office-login{% endif %}">
+
+            {% csrf_token %}
+
+            <div class="mb-3">
+
+              {{ form.username.label_tag }}
+
+              {{ form.username }}
+
+            </div>
+
+            <div class="mb-4">
+
+              {{ form.password.label_tag }}
+
+              {{ form.password }}
+
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2">Sign In</button>
+
+          </form>
+
+
+
+          <div class="d-flex justify-content-between mt-4 small flex-wrap gap-2">
+
+            <a class="link-muted" href="{% url 'home' %}">← Back to home</a>
+
+            <div class="d-flex gap-2 flex-wrap">
+
+              {% if request.path|slice:":5" != "/ceo/" %}
+                <a class="link-muted" href="{% url 'ceo_login' %}">CEO login</a>
+              {% endif %}
+              {% if request.path|slice:":10" != "/director/" %}
+                <a class="link-muted" href="{% url 'director_login' %}">Director login</a>
+              {% endif %}
+              {% if request.path|slice:":4" != "/hr/" %}
+
+                <a class="link-muted" href="{% url 'hr_login' %}">HR login</a>
+
+              {% endif %}
+
+              {% if request.path|slice:":9" != "/employee/" %}
+
+                <a class="link-muted" href="{% url 'employee_login' %}">Employee login</a>
+
+              {% endif %}
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+{% endblock %}
+
+{% block extra_public_js %}
+  {% include "includes/office_verification_scripts.html" %}
+{% endblock %}
+

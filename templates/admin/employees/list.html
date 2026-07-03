@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Employees{% endblock %}
+{% block page_heading %}Employees{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-primary btn-sm" href="{% url 'employee_create' %}">Add Employee</a>
+{% endblock %}
+{% block content %}
+  <div class="content-card">
+    <form class="mb-3" method="get">
+      <div class="input-group">
+        <input class="form-control" name="q" value="{{ q }}" placeholder="Search by ID, name, department" />
+        <button class="btn btn-outline-secondary" type="submit">Search</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-portal table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Employee ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Department</th>
+          <th>Active</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in employees %}
+          <tr>
+            <td>{{ e.employee_id }}</td>
+            <td>{{ e.username }}</td>
+            <td>{{ e.email|default:"-" }}</td>
+            <td>{{ e.department|default:"-" }}</td>
+            <td>{{ e.is_active|yesno:"Yes,No" }}</td>
+            <td class="text-end">
+              <a class="btn btn-outline-primary btn-sm" href="{% url 'employee_update' e.pk %}">Edit</a>
+              <a class="btn btn-outline-light btn-sm" href="{% url 'hr_employee_portal' e.pk %}">Portal</a>
+              <a class="btn btn-outline-info btn-sm" href="{% url 'hr_employee_personal_info' e.pk %}">Personal</a>
+              {% if request.user.role == 'ceo' %}
+                <a class="btn btn-outline-success btn-sm" href="{% url 'praise_letter_create' %}?employee={{ e.pk }}">Praise</a>
+              {% endif %}
+              <a class="btn btn-outline-danger btn-sm" href="{% url 'employee_delete' e.pk %}">Delete</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted">No employees found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+{% endblock %}
+

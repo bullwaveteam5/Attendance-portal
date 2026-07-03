@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Leave Requests{% endblock %}
+{% block page_heading %}Leave Requests{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Inform HR about planned leave</p>{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-success btn-sm" href="{% url 'leave_request_create' %}"><i class="bi bi-plus-lg me-1"></i>Request Leave</a>
+{% endblock %}
+
+{% block content %}
+  <div class="content-card">
+    <div class="table-responsive">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
+          <tr><th>From</th><th>To</th><th>Type</th><th>Reason</th><th>Status</th><th>HR Note</th></tr>
+        </thead>
+        <tbody>
+          {% for lr in leave_requests %}
+            <tr>
+              <td>{{ lr.start_date }}</td>
+              <td>{{ lr.end_date }}</td>
+              <td>{{ lr.get_leave_type_display }}</td>
+              <td class="text-muted">{{ lr.reason|truncatechars:50 }}</td>
+              <td>
+                {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+              </td>
+              <td class="text-muted small">{{ lr.hr_note|default:"—" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="text-muted text-center py-4">No leave requests yet. Click <strong>Request Leave</strong> to inform HR.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

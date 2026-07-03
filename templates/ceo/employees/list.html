@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Employees{% endblock %}
+{% block content %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h5 mb-0">Employees (CEO view)</h1>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">Dashboard</a>
+  </div>
+
+  <form class="mb-3" method="get">
+    <div class="input-group">
+      <input class="form-control" name="q" value="{{ q }}" placeholder="Search by ID, name, department" />
+      <button class="btn btn-outline-secondary" type="submit">Search</button>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Employee ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Department</th>
+          <th>Salary</th>
+          <th>Active</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in employees %}
+          <tr>
+            <td>{{ e.employee_id }}</td>
+            <td>{{ e.username }}</td>
+            <td>{{ e.email|default:"-" }}</td>
+            <td>{{ e.department|default:"-" }}</td>
+            <td>{{ e.salary }}</td>
+            <td>{{ e.is_active|yesno:"Yes,No" }}</td>
+            <td class="text-end">
+              <a class="btn btn-outline-primary btn-sm" href="{% url 'ceo_employee_portal' e.pk %}">View portal</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-muted">No employees found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% if org %}
+  <div class="org-chart" role="list" aria-label="Organization hierarchy">
+    {% for node in org.levels %}
+      <div class="org-chart-level" role="listitem">
+        <div class="org-node {% if org.viewer_key == node.key %}org-node-you{% endif %} org-node-{{ node.key }}">
+          <div class="org-node-role">{{ node.title }}</div>
+          {% if node.user %}
+            <div class="org-node-name">{{ node.user.username }}</div>
+            <div class="org-node-id text-muted small">{{ node.user.employee_id }}{% if node.user.department %} · {{ node.user.department }}{% endif %}</div>
+          {% elif node.key == "employees" %}
+            <div class="org-node-name">{{ org.employee_count }} team member{{ org.employee_count|pluralize }}</div>
+            <div class="org-node-id text-muted small">All employees report to HR</div>
+          {% else %}
+            <div class="org-node-name text-muted">Not assigned</div>
+          {% endif %}
+          {% if org.viewer_key == node.key %}
+            <span class="badge rounded-pill org-you-badge">You</span>
+          {% endif %}
+        </div>
+        {% if not forloop.last %}
+          <div class="org-connector" aria-hidden="true">
+            <span class="org-connector-line"></span>
+            <span class="org-connector-arrow">↓</span>
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if org.hr_team|length > 1 %}
+    <div class="mt-4">
+      <h3 class="h6 text-muted mb-2">HR team</h3>
+      <div class="d-flex flex-wrap gap-2">
+        {% for hr in org.hr_team %}
+          <span class="badge rounded-pill org-hr-badge {% if org.config.primary_hr_user_id == hr.pk %}org-hr-primary{% endif %}">
+            {{ hr.username }} ({{ hr.employee_id }}){% if org.config.primary_hr_user_id == hr.pk %} · Primary{% endif %}
+          </span>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+{% endif %}

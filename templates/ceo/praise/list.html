@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Praise Letters{% endblock %}
+{% block content %}
+  <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+    <h1 class="h5 mb-0">Praise Letters</h1>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">CEO Home</a>
+      <a class="btn btn-success btn-sm" href="{% url 'praise_letter_create' %}">Issue New Letter</a>
+    </div>
+  </div>
+
+  <form class="mb-3" method="get">
+    <div class="input-group">
+      <input class="form-control" name="employee_id" value="{{ employee_id }}" placeholder="Filter by employee ID" />
+      <button class="btn btn-outline-secondary" type="submit">Search</button>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Title</th>
+          <th>Message</th>
+          <th>Issued</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for letter in letters %}
+          <tr>
+            <td>{{ letter.employee.employee_id }} — {{ letter.employee.username }}</td>
+            <td>{{ letter.title }}</td>
+            <td class="text-muted">{{ letter.message|truncatechars:60 }}</td>
+            <td>{{ letter.issued_at|date:"M d, Y H:i" }}</td>
+            <td class="text-end">
+              <a class="btn btn-outline-primary btn-sm" href="{% url 'praise_letter_detail' letter.pk %}">View</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-muted">No praise letters yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

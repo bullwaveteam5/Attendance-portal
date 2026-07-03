@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}CEO Override{% endblock %}
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+      <div class="card border-warning">
+        <div class="card-body p-4">
+          <h1 class="h5 mb-1">CEO Override — HR Decision</h1>
+          <p class="text-muted small mb-4">Change the HR decision on this regularization request. Your action supersedes HR.</p>
+
+          <div class="mb-4 small">
+            <div><strong>Employee:</strong> {{ reg_req.employee.employee_id }} — {{ reg_req.employee.username }}</div>
+            <div><strong>Date:</strong> {{ reg_req.date }}</div>
+            <div><strong>Current status:</strong> {{ reg_req.status }}</div>
+            <div><strong>HR reviewer:</strong> {{ reg_req.reviewed_by.employee_id|default:"Not reviewed" }}</div>
+            <div><strong>HR note:</strong> {{ reg_req.hr_note|default:"-" }}</div>
+            <div class="text-muted mt-2">{{ reg_req.description }}</div>
+          </div>
+
+          <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+              {{ form.check_in.label_tag }}
+              {{ form.check_in }}
+              <div class="form-text">Required when approving (overrule HR rejection).</div>
+              {{ form.check_in.errors }}
+            </div>
+            <div class="mb-4">
+              {{ form.ceo_note.label_tag }}
+              {{ form.ceo_note }}
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="submit" name="action" value="approve" class="btn btn-success">Approve (Override HR)</button>
+              <button type="submit" name="action" value="reject" class="btn btn-danger">Reject (Override HR)</button>
+              <a class="btn btn-outline-secondary" href="{% url 'regularization_request_list' %}">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

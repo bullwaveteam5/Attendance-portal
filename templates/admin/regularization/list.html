@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Regularization Requests{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h5 mb-0">Regularization Requests</h1>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin_dashboard' %}">Dashboard</a>
+      <a class="btn btn-outline-light btn-sm" href="{% url 'attendance_regularize' %}">Direct Regularize</a>
+    </div>
+  </div>
+
+  <form class="card card-body mb-3" method="get">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label mb-1">Status</label>
+        <select class="form-select" name="status">
+          <option value="pending" {% if status == "pending" %}selected{% endif %}>Pending</option>
+          <option value="approved" {% if status == "approved" %}selected{% endif %}>Approved</option>
+          <option value="rejected" {% if status == "rejected" %}selected{% endif %}>Rejected</option>
+          <option value="" {% if not status %}selected{% endif %}>All</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button class="btn btn-primary w-100" type="submit">Filter</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Status</th>
+          <th>HR decision</th>
+          <th>CEO override</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+          <tr>
+            <td>{{ r.employee.employee_id }} - {{ r.employee.username }}</td>
+            <td>{{ r.date }}</td>
+            <td class="text-muted">{{ r.description|truncatechars:80 }}</td>
+            <td>{{ r.status }}</td>
+            <td class="text-muted small">{{ r.reviewed_by.employee_id|default:"-" }} {% if r.reviewed_at %}({{ r.reviewed_at|date:"M d" }}){% endif %}</td>
+            <td class="text-muted small">{% if r.ceo_reviewed_by %}{{ r.ceo_reviewed_by.employee_id }} — {{ r.ceo_note|default:"Overridden" }}{% else %}-{% endif %}</td>
+            <td class="text-end">
+              {% if r.status == "pending" %}
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'regularization_review' r.pk %}">Review</a>
+              {% else %}
+                <span class="text-muted small me-2">{{ r.hr_note|default:"-" }}</span>
+                {% if is_ceo_mode %}
+                  <a class="btn btn-outline-warning btn-sm" href="{% url 'ceo_regularization_override' r.pk %}">CEO Override</a>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-muted">No requests found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

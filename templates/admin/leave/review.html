@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Review Leave{% endblock %}
+{% block page_heading %}Review Leave Request{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'hr_leave_request_list' %}">← Back</a>
+{% endblock %}
+
+{% block content %}
+  <div class="content-card mb-4">
+    <div class="row g-3">
+      <div class="col-md-6"><span class="profile-field-label">Employee</span><div class="profile-field-value">{{ leave_req.employee.employee_id }} — {{ leave_req.employee.username }}</div></div>
+      <div class="col-md-3"><span class="profile-field-label">Type</span><div class="profile-field-value">{{ leave_req.get_leave_type_display }}</div></div>
+      <div class="col-md-3"><span class="profile-field-label">Dates</span><div class="profile-field-value">{{ leave_req.start_date }} to {{ leave_req.end_date }}</div></div>
+      <div class="col-12"><span class="profile-field-label">Reason</span><div class="profile-field-value">{{ leave_req.reason|linebreaksbr }}</div></div>
+    </div>
+  </div>
+  <div class="content-card">
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label">HR Note (optional)</label>
+        {{ form.hr_note }}
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" name="action" value="approve" class="btn btn-success">Approve</button>
+        <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

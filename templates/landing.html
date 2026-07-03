@@ -1,0 +1,68 @@
+{% extends "base_public.html" %}
+{% load static %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+  <div class="text-center mb-5 pt-3">
+    <div class="hero-brand-wrap">
+      {% include "includes/brand.html" with variant="hero" %}
+    </div>
+    <div class="hero-tagline mt-3 mb-2">Attendance Management</div>
+    <p class="hero-sub">Secure check-in/out, HR controls, CEO oversight, overtime tracking, and smart reporting — all in one place.</p>
+    {% if dashboard_url %}
+      <div class="mt-3">
+        <a class="btn btn-outline-light btn-sm" href="{{ dashboard_url }}">Go to your dashboard →</a>
+        <a class="btn btn-link btn-sm link-muted" href="{% url 'logout' %}">Logout</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="row g-4 justify-content-center">
+    <div class="col-12 col-md-6 col-lg-4">
+      <a class="card option-card option-card-portal-employee h-100 text-decoration-none text-reset" href="{% url 'employee_login' %}">
+        <div class="card-body p-4 p-md-5 position-relative">
+          <div class="badge rounded-pill mb-3 badge-blue">Employee Portal</div>
+          <h2 class="h4 mb-2 fw-bold">Mark your attendance</h2>
+          <p class="text-muted mb-4">Check-in once per day, check-out later, view history, leaves & regularization.</p>
+          <span class="btn btn-primary">Continue as Employee →</span>
+        </div>
+      </a>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <a class="card option-card option-card-portal-hr h-100 text-decoration-none text-reset" href="{% url 'hr_login' %}">
+        <div class="card-body p-4 p-md-5 position-relative">
+          <div class="badge rounded-pill mb-3 badge-gold">HR Admin Portal</div>
+          <h2 class="h4 mb-2 fw-bold">Manage employees & reports</h2>
+          <p class="text-muted mb-4">Create users, audit attendance, approve regularization, export CSV/PDF.</p>
+          <span class="btn btn-outline-light">Continue as HR →</span>
+        </div>
+      </a>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <a class="card option-card option-card-portal-ceo h-100 text-decoration-none text-reset" href="{% url 'ceo_login' %}">
+        <div class="card-body p-4 p-md-5 position-relative">
+          <div class="badge rounded-pill mb-3 badge-green">CEO Portal</div>
+          <h2 class="h4 mb-2 fw-bold">Oversight & analytics</h2>
+          <p class="text-muted mb-4">Full HR control, issue praise letters, override HR decisions, and download reports.</p>
+          <span class="btn btn-outline-info">Continue as CEO →</span>
+        </div>
+      </a>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <a class="card option-card option-card-portal-director h-100 text-decoration-none text-reset" href="{% url 'director_login' %}">
+        <div class="card-body p-4 p-md-5 position-relative">
+          <div class="badge rounded-pill mb-3 badge-purple">Director Portal</div>
+          <h2 class="h4 mb-2 fw-bold">Leadership & hierarchy</h2>
+          <p class="text-muted mb-4">View the org chart, assign Director / CEO / HR leaders, and oversee the company structure.</p>
+          <span class="btn btn-outline-light">Continue as Director →</span>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="text-center mt-5">
+    {% if not has_users %}
+      <a class="link-muted small" href="{% url 'initial_setup' %}">First time? Create HR admin account</a>
+    {% endif %}
+  </div>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Holidays & Calendar{% endblock %}
+
+{% block content %}
+
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+
+    <div>
+
+      <h1 class="h5 mb-0">Holidays & Extra Working Days</h1>
+
+      <div class="text-muted small">{{ month_label }}</div>
+
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+
+      {% if is_ceo_mode %}
+
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">CEO Home</a>
+
+        <a class="btn btn-success btn-sm" href="{% url 'ceo_holiday_announce' %}">Send CEO Notice</a>
+
+      {% else %}
+
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin_dashboard' %}">Dashboard</a>
+
+      {% endif %}
+
+      <a class="btn btn-primary btn-sm" href="{% url 'holiday_create' %}">Add Entry</a>
+
+    </div>
+
+  </div>
+
+
+
+  <form class="card card-body mb-3" method="get">
+
+    <div class="row g-2 align-items-end">
+
+      <div class="col-md-3">
+
+        <label class="form-label mb-1">Month</label>
+
+        <select class="form-select" name="month">
+          <option value="1" {% if month == 1 %}selected{% endif %}>January</option>
+
+          <option value="2" {% if month == 2 %}selected{% endif %}>February</option>
+
+          <option value="3" {% if month == 3 %}selected{% endif %}>March</option>
+
+          <option value="4" {% if month == 4 %}selected{% endif %}>April</option>
+
+          <option value="5" {% if month == 5 %}selected{% endif %}>May</option>
+
+          <option value="6" {% if month == 6 %}selected{% endif %}>June</option>
+
+          <option value="7" {% if month == 7 %}selected{% endif %}>July</option>
+
+          <option value="8" {% if month == 8 %}selected{% endif %}>August</option>
+
+          <option value="9" {% if month == 9 %}selected{% endif %}>September</option>
+
+          <option value="10" {% if month == 10 %}selected{% endif %}>October</option>
+
+          <option value="11" {% if month == 11 %}selected{% endif %}>November</option>
+
+          <option value="12" {% if month == 12 %}selected{% endif %}>December</option>
+
+        </select>
+
+      </div>
+
+      <div class="col-md-3">
+
+        <label class="form-label mb-1">Year</label>
+
+        <input class="form-control" name="year" value="{{ year }}" />
+
+      </div>
+
+      <div class="col-md-3">
+
+        <button class="btn btn-primary w-100" type="submit">Filter</button>
+
+      </div>
+
+    </div>
+
+  </form>
+
+
+
+  <div class="table-responsive">
+
+    <table class="table table-sm table-striped align-middle">
+
+      <thead>
+
+        <tr>
+
+          <th>Date</th>
+
+          <th>Name</th>
+
+          <th>Type</th>
+
+          <th>Optional</th>
+
+          <th>CEO Message</th>
+
+          <th></th>
+
+        </tr>
+
+      </thead>
+
+      <tbody>
+
+        {% for h in holidays %}
+
+          <tr>
+
+            <td>{{ h.date }}</td>
+
+            <td>{{ h.name }}</td>
+
+            <td>
+
+              {% if h.event_type == "extra_working" %}
+
+                <span class="badge bg-warning text-dark">Extra Working Day</span>
+
+              {% else %}
+
+                <span class="badge bg-info">Holiday</span>
+
+              {% endif %}
+
+            </td>
+
+            <td>{{ h.is_optional|yesno:"Yes,No" }}</td>
+
+            <td class="text-muted small">{{ h.ceo_message|truncatechars:50|default:"-" }}</td>
+
+            <td class="text-end">
+
+              <a class="btn btn-outline-primary btn-sm" href="{% url 'holiday_update' h.pk %}">Edit</a>
+
+              <a class="btn btn-outline-danger btn-sm" href="{% url 'holiday_delete' h.pk %}">Delete</a>
+
+            </td>
+
+          </tr>
+
+        {% empty %}
+
+          <tr><td colspan="6" class="text-muted">No calendar entries for this month.</td></tr>
+
+        {% endfor %}
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+{% endblock %}
+
+

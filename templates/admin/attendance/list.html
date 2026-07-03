@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance{% endblock %}
+
+{% block content %}
+
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+
+    <h1 class="h5 mb-0">Attendance Records</h1>
+
+    <div class="d-flex flex-wrap gap-2">
+
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin_dashboard' %}">Dashboard</a>
+
+      <a class="btn btn-outline-light btn-sm" href="{% url 'attendance_regularize' %}">Regularize</a>
+
+      <a class="btn btn-outline-success btn-sm" href="{% url 'export_attendance_csv' %}?month={{ filters.month }}&year={{ filters.year }}&employee_id={{ filters.employee_id }}&department={{ filters.department }}">Download Month CSV</a>
+
+      <a class="btn btn-success btn-sm" href="{% url 'export_attendance_csv' %}?scope=all&employee_id={{ filters.employee_id }}&department={{ filters.department }}">Download All CSV</a>
+
+      <a class="btn btn-outline-danger btn-sm" href="{% url 'export_attendance_pdf' %}?month={{ filters.month }}&year={{ filters.year }}&employee_id={{ filters.employee_id }}&department={{ filters.department }}">Export PDF</a>
+
+    </div>
+
+  </div>
+
+
+
+  <form class="card card-body mb-3" method="get">
+
+    <div class="row g-2 align-items-end">
+
+      <div class="col-md-2">
+
+        <label class="form-label mb-1">Month</label>
+
+        <select class="form-select" name="month">
+
+          {% for m in month_choices %}
+
+            <option value="{{ m }}" {% if filters.month == m|stringformat:"s" %}selected{% endif %}>{{ m }}</option>
+
+          {% endfor %}
+
+        </select>
+
+      </div>
+
+      <div class="col-md-2">
+
+        <label class="form-label mb-1">Year</label>
+
+        <input class="form-control" type="number" name="year" value="{{ filters.year }}" min="2020" max="2100">
+
+      </div>
+
+      <div class="col-md-2">
+
+        <label class="form-label mb-1">Specific date</label>
+
+        <input class="form-control" type="date" name="date" value="{{ filters.date }}">
+
+      </div>
+
+      <div class="col-md-2">
+
+        <label class="form-label mb-1">Employee ID</label>
+
+        <input class="form-control" name="employee_id" value="{{ filters.employee_id }}" placeholder="e.g. E001">
+
+      </div>
+
+      <div class="col-md-2">
+
+        <label class="form-label mb-1">Department</label>
+
+        <input class="form-control" name="department" value="{{ filters.department }}" placeholder="e.g. Sales">
+
+      </div>
+
+      <div class="col-md-2">
+
+        <button class="btn btn-primary w-100" type="submit">Filter</button>
+
+      </div>
+
+    </div>
+
+    <div class="form-text mt-2">Leave date empty to view the full selected month. Use a specific date to filter one day.</div>
+
+  </form>
+
+
+
+  <div class="table-responsive">
+
+    <table class="table table-sm table-striped align-middle">
+
+      <thead>
+
+        <tr>
+
+          <th>Date</th>
+
+          <th>Emp ID</th>
+
+          <th>Name</th>
+
+          <th>Dept</th>
+
+          <th>Check In</th>
+
+          <th>Check Out</th>
+
+          <th>Hours</th>
+
+          <th>Overtime</th>
+
+          <th>Status</th>
+
+          <th>Late</th>
+
+        </tr>
+
+      </thead>
+
+      <tbody>
+
+        {% for r in records %}
+
+          <tr>
+
+            <td>{{ r.date }}</td>
+
+            <td>{{ r.employee.employee_id }}</td>
+
+            <td>{{ r.employee.username }}</td>
+
+            <td>{{ r.employee.department }}</td>
+
+            <td>{{ r.check_in|default:"-" }}</td>
+
+            <td>{{ r.check_out|default:"-" }}</td>
+
+            <td>{{ r.working_hours }}</td>
+
+            <td>{% if r.overtime_hours > 0 %}{{ r.overtime_hours }}{% else %}-{% endif %}</td>
+
+            <td>{{ r.status }}</td>
+
+            <td>{{ r.is_late|yesno:"Yes,No" }}</td>
+
+          </tr>
+
+        {% empty %}
+
+          <tr><td colspan="10" class="text-muted">No records.</td></tr>
+
+        {% endfor %}
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+{% endblock %}
+
+

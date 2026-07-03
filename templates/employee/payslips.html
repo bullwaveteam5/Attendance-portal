@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Pay Slips{% endblock %}
+{% block page_heading %}Pay Slips{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Download your monthly salary slips</p>{% endblock %}
+
+{% block content %}
+  <div class="content-card">
+    <div class="table-responsive">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
+          <tr><th>Period</th><th>Title</th><th>Uploaded</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for slip in payslips %}
+            <tr>
+              <td><strong>{{ slip.period_label }}</strong></td>
+              <td>{{ slip.title|default:"Salary Slip" }}</td>
+              <td class="text-muted small">{{ slip.uploaded_at|date:"M d, Y" }}</td>
+              <td class="text-end">
+                <a class="btn btn-success btn-sm" href="{% url 'employee_payslip_download' slip.pk %}">
+                  <i class="bi bi-download me-1"></i>Download
+                </a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-muted text-center py-4">No pay slips uploaded yet. HR will publish them here each month.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

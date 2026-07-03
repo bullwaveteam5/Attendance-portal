@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Organization Hierarchy{% endblock %}
+{% block page_heading %}Organization Hierarchy{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Director -> CEO -> HR -> Employees</p>{% endblock %}
+{% block page_actions %}
+  {% if can_edit %}
+    <a class="btn btn-primary btn-sm" href="{% url 'director_hierarchy_manage' %}">Edit leaders</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="content-card">
+      {% include "includes/org_hierarchy.html" with org=org %}
+      <p class="text-muted small mt-4 mb-0">
+        Leadership assignments can be updated by the Director when roles change.
+      </p>
+  </div>
+{% endblock %}

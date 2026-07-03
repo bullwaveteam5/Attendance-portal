@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Leave Requests{% endblock %}
+{% block page_heading %}Leave Requests{% endblock %}
+{% block page_actions %}
+  <div class="btn-group btn-group-sm">
+    <a class="btn btn-outline-secondary {% if status_filter == 'pending' %}active{% endif %}" href="?status=pending">Pending</a>
+    <a class="btn btn-outline-secondary {% if status_filter == 'approved' %}active{% endif %}" href="?status=approved">Approved</a>
+    <a class="btn btn-outline-secondary {% if status_filter == 'rejected' %}active{% endif %}" href="?status=rejected">Rejected</a>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="content-card">
+    <div class="table-responsive">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
+          <tr><th>Employee</th><th>From</th><th>To</th><th>Type</th><th>Reason</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for lr in leave_requests %}
+            <tr>
+              <td>{{ lr.employee.employee_id }} — {{ lr.employee.username }}</td>
+              <td>{{ lr.start_date }}</td>
+              <td>{{ lr.end_date }}</td>
+              <td>{{ lr.get_leave_type_display }}</td>
+              <td class="text-muted">{{ lr.reason|truncatechars:40 }}</td>
+              <td>{{ lr.get_status_display }}</td>
+              <td class="text-end">
+                {% if lr.status == 'pending' %}
+                  <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">Review</a>
+                {% else %}
+                  <span class="text-muted small">{{ lr.hr_note|default:"—" }}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="text-muted text-center py-4">No leave requests.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

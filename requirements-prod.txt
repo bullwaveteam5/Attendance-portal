@@ -1,0 +1,2 @@
+waitress>=3.0
+whitenoise>=6.6

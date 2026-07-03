@@ -1,0 +1,15 @@
+{% load static %}
+<div class="brand-block brand-block-{{ variant|default:'default' }}">
+  <img
+    src="{% static 'img/company-logo.png' %}"
+    alt="Capital Bull Wave Private LTD."
+    class="brand-logo brand-logo-{{ variant|default:'default' }}"
+  />
+  <p class="brand-name brand-name-white-blue" aria-label="Capital Bull Wave Private LTD.">
+    <span class="brand-word brand-word-white">Capital</span>
+    <span class="brand-word brand-word-blue">Bull</span>
+    <span class="brand-word brand-word-white">Wave</span>
+    <span class="brand-word brand-word-blue">Private</span>
+    <span class="brand-word brand-word-white">LTD.</span>
+  </p>
+</div>

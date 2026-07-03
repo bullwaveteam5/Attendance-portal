@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Personal Information{% endblock %}
+{% block page_heading %}Personal Information{% endblock %}
+{% block page_subheading %}
+  <p class="app-page-subtitle mb-0">
+    {% if read_only %}
+      Viewing profile for {{ profile_user.employee_id }} — {{ profile_user.username }}
+    {% else %}
+      Keep your profile, family, and bank details up to date
+    {% endif %}
+  </p>
+{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline-secondary btn-sm" href="{% url back_url %}">← Back</a>
+{% endblock %}
+
+{% block content %}
+  {% if read_only %}
+    <div class="content-card mb-4">
+      <div class="row g-4 align-items-start">
+        <div class="col-12 col-md-3 text-center">
+          {% if profile.profile_photo %}
+            <img src="{{ profile.profile_photo.url }}" alt="Profile photo" class="profile-photo-preview" />
+          {% else %}
+            <div class="profile-photo-placeholder mx-auto">
+              <i class="bi bi-person"></i>
+              <span>No photo uploaded</span>
+            </div>
+          {% endif %}
+        </div>
+        <div class="col-12 col-md-9">
+          <h2 class="content-card-title border-0 pb-0 mb-3">{{ profile.display_name }}</h2>
+          <div class="row g-3">
+            <div class="col-md-6"><span class="profile-field-label">Employee ID</span><div class="profile-field-value">{{ profile_user.employee_id }}</div></div>
+            <div class="col-md-6"><span class="profile-field-label">Department</span><div class="profile-field-value">{{ profile_user.department|default:"—" }}</div></div>
+            <div class="col-md-6"><span class="profile-field-label">Email</span><div class="profile-field-value">{{ profile_user.email|default:"—" }}</div></div>
+            <div class="col-md-6"><span class="profile-field-label">Phone</span><div class="profile-field-value">{{ profile.phone_number|default:"—" }}</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-12 col-lg-6">
+        <div class="content-card h-100">
+          <h3 class="profile-section-title"><i class="bi bi-people me-2"></i>Family Details</h3>
+          <div class="mb-3"><span class="profile-field-label">Father's Name</span><div class="profile-field-value">{{ profile.father_name|default:"—" }}</div></div>
+          <div class="mb-0"><span class="profile-field-label">Mother's Name</span><div class="profile-field-value">{{ profile.mother_name|default:"—" }}</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="content-card h-100">
+          <h3 class="profile-section-title"><i class="bi bi-telephone me-2"></i>Emergency Contact</h3>
+          <div class="mb-3"><span class="profile-field-label">Contact Name</span><div class="profile-field-value">{{ profile.emergency_contact_name|default:"—" }}</div></div>
+          <div class="mb-0"><span class="profile-field-label">Emergency Phone</span><div class="profile-field-value">{{ profile.emergency_phone_number|default:"—" }}</div></div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="content-card">
+          <h3 class="profile-section-title"><i class="bi bi-geo-alt me-2"></i>Address</h3>
+          <div class="profile-field-value">{{ profile.current_address|default:"—"|linebreaksbr }}</div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="content-card h-100">
+          <h3 class="profile-section-title"><i class="bi bi-card-text me-2"></i>Identity Documents</h3>
+          <div class="mb-3"><span class="profile-field-label">PAN Number</span><div class="profile-field-value font-monospace">{{ profile.pan_number|default:"—" }}</div></div>
+          <div class="mb-0"><span class="profile-field-label">Aadhaar Number</span><div class="profile-field-value font-monospace">{{ profile.aadhaar_number|default:"—" }}</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="content-card h-100">
+          <h3 class="profile-section-title"><i class="bi bi-bank me-2"></i>Bank Details</h3>
+          <div class="mb-2"><span class="profile-field-label">Account Holder</span><div class="profile-field-value">{{ profile.bank_account_holder|default:"—" }}</div></div>
+          <div class="mb-2"><span class="profile-field-label">Bank Name</span><div class="profile-field-value">{{ profile.bank_name|default:"—" }}</div></div>
+          <div class="mb-2"><span class="profile-field-label">Account Number</span><div class="profile-field-value font-monospace">{{ profile.bank_account_number|default:"—" }}</div></div>
+          <div class="mb-0"><span class="profile-field-label">IFSC Code</span><div class="profile-field-value font-monospace">{{ profile.bank_ifsc|default:"—" }}</div></div>
+        </div>
+      </div>
+    </div>
+    {% if profile.updated_at %}
+      <p class="text-muted small mt-3 mb-0">Last updated: {{ profile.updated_at|date:"M d, Y g:i A" }}</p>
+    {% endif %}
+
+  {% else %}
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+
+      <div class="content-card mb-4">
+        <h3 class="profile-section-title"><i class="bi bi-camera me-2"></i>Profile Photo</h3>
+        <div class="row g-4 align-items-center">
+          <div class="col-12 col-md-3 text-center">
+            {% if profile.profile_photo %}
+              <img src="{{ profile.profile_photo.url }}" alt="Current photo" class="profile-photo-preview" id="photoPreview" />
+            {% else %}
+              <div class="profile-photo-placeholder mx-auto" id="photoPreviewPlaceholder">
+                <i class="bi bi-person"></i>
+                <span>Upload your photo</span>
+              </div>
+              <img src="" alt="" class="profile-photo-preview d-none" id="photoPreview" />
+            {% endif %}
+          </div>
+          <div class="col-12 col-md-9">
+            <label class="form-label" for="{{ form.profile_photo.id_for_label }}">Choose photo</label>
+            {{ form.profile_photo }}
+            <div class="form-text">JPG or PNG, max 2 MB recommended. Square photos work best.</div>
+            {% for error in form.profile_photo.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="content-card mb-4">
+        <h3 class="profile-section-title"><i class="bi bi-person-vcard me-2"></i>Basic Information</h3>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="{{ form.full_name.id_for_label }}">Full Name</label>
+            {{ form.full_name }}
+            {% for error in form.full_name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Employee ID</label>
+            <input class="form-control" type="text" value="{{ profile_user.employee_id }}" disabled />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="{{ form.phone_number.id_for_label }}">Phone Number</label>
+            {{ form.phone_number }}
+            {% for error in form.phone_number.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="{{ form.current_address.id_for_label }}">Current Address</label>
+            {{ form.current_address }}
+            {% for error in form.current_address.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-6">
+          <div class="content-card h-100 mb-0">
+            <h3 class="profile-section-title"><i class="bi bi-people me-2"></i>Family Details</h3>
+            <div class="mb-3">
+              <label class="form-label" for="{{ form.father_name.id_for_label }}">Father's Name</label>
+              {{ form.father_name }}
+            </div>
+            <div class="mb-0">
+              <label class="form-label" for="{{ form.mother_name.id_for_label }}">Mother's Name</label>
+              {{ form.mother_name }}
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="content-card h-100 mb-0">
+            <h3 class="profile-section-title"><i class="bi bi-telephone-forward me-2"></i>Emergency Contact</h3>
+            <div class="mb-3">
+              <label class="form-label" for="{{ form.emergency_contact_name.id_for_label }}">Contact Person Name</label>
+              {{ form.emergency_contact_name }}
+            </div>
+            <div class="mb-0">
+              <label class="form-label" for="{{ form.emergency_phone_number.id_for_label }}">Emergency Phone Number</label>
+              {{ form.emergency_phone_number }}
+              {% for error in form.emergency_phone_number.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-6">
+          <div class="content-card h-100 mb-0">
+            <h3 class="profile-section-title"><i class="bi bi-card-text me-2"></i>Identity Documents</h3>
+            <div class="mb-3">
+              <label class="form-label" for="{{ form.pan_number.id_for_label }}">PAN Number</label>
+              {{ form.pan_number }}
+              {% for error in form.pan_number.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="mb-0">
+              <label class="form-label" for="{{ form.aadhaar_number.id_for_label }}">Aadhaar Number</label>
+              {{ form.aadhaar_number }}
+              {% for error in form.aadhaar_number.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="content-card h-100 mb-0">
+            <h3 class="profile-section-title"><i class="bi bi-bank me-2"></i>Bank Details</h3>
+            <div class="mb-3">
+              <label class="form-label" for="{{ form.bank_account_holder.id_for_label }}">Account Holder Name</label>
+              {{ form.bank_account_holder }}
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="{{ form.bank_name.id_for_label }}">Bank Name & Branch</label>
+              {{ form.bank_name }}
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="{{ form.bank_account_number.id_for_label }}">Account Number</label>
+              {{ form.bank_account_number }}
+            </div>
+            <div class="mb-0">
+              <label class="form-label" for="{{ form.bank_ifsc.id_for_label }}">IFSC Code</label>
+              {{ form.bank_ifsc }}
+              {% for error in form.bank_ifsc.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="submit" class="btn btn-success px-4">
+          <i class="bi bi-check-lg me-1"></i> Save Personal Information
+        </button>
+        <a class="btn btn-outline-secondary" href="{% url back_url %}">Cancel</a>
+      </div>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  {% if not read_only %}
+  <script>
+    document.getElementById("id_profile_photo")?.addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const preview = document.getElementById("photoPreview");
+      const placeholder = document.getElementById("photoPreviewPlaceholder");
+      preview.src = URL.createObjectURL(file);
+      preview.classList.remove("d-none");
+      if (placeholder) placeholder.classList.add("d-none");
+    });
+  </script>
+  {% endif %}
+{% endblock %}

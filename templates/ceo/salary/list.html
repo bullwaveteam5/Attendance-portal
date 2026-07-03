@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Salary Increments{% endblock %}
+{% block content %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h1 class="h5 mb-0">Salary Increment Requests (CEO view)</h1>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">Dashboard</a>
+  </div>
+
+  <form class="mb-3" method="get">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label mb-1">Status</label>
+        <select class="form-select" name="status">
+          <option value="">All</option>
+          <option value="pending" {% if status == "pending" %}selected{% endif %}>Pending</option>
+          <option value="approved" {% if status == "approved" %}selected{% endif %}>Approved</option>
+          <option value="rejected" {% if status == "rejected" %}selected{% endif %}>Rejected</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" type="submit">Filter</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Percent</th>
+          <th>Status</th>
+          <th>Note</th>
+          <th>Decided by HR</th>
+          <th>Decided at</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+          <tr>
+            <td>{{ r.employee.employee_id }} — {{ r.employee.username }}</td>
+            <td>{{ r.percent }}%</td>
+            <td>{{ r.status }}</td>
+            <td class="text-muted">{{ r.note|default:"-" }}</td>
+            <td>{{ r.decided_by.employee_id|default:"-" }}</td>
+            <td>{{ r.decided_at|default:"-" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted">No requests found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

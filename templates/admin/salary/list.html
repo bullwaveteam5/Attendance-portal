@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Salary Increments{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h5 mb-0">Salary Increment Requests</h1>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin_dashboard' %}">Dashboard</a>
+  </div>
+
+  <form class="card card-body mb-3" method="get">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label mb-1">Status</label>
+        <select class="form-select" name="status">
+          <option value="" {% if not status %}selected{% endif %}>All</option>
+          <option value="pending" {% if status == "pending" %}selected{% endif %}>Pending</option>
+          <option value="approved" {% if status == "approved" %}selected{% endif %}>Approved</option>
+          <option value="rejected" {% if status == "rejected" %}selected{% endif %}>Rejected</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button class="btn btn-primary w-100" type="submit">Filter</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Percent</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Decided</th>
+          <th>By</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+          <tr>
+            <td>{{ r.employee.employee_id }} - {{ r.employee.username }}</td>
+            <td>{{ r.percent }}%</td>
+            <td>{{ r.status }}</td>
+            <td class="text-muted">{{ r.created_at }}</td>
+            <td class="text-muted">{{ r.decided_at|default:"-" }}</td>
+            <td class="text-muted">{% if r.decided_by %}{{ r.decided_by.employee_id }}{% else %}-{% endif %}</td>
+            <td class="text-end">
+              {% if r.status == "pending" %}
+                <a class="btn btn-outline-success btn-sm" href="{% url 'salary_increment_approve' r.pk %}">Approve</a>
+                <a class="btn btn-outline-danger btn-sm" href="{% url 'salary_increment_reject' r.pk %}">Reject</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-muted">No requests.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+

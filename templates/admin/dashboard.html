@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_heading %}Overview{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Today: {{ today }}{% if is_ceo_mode %} · CEO HR access{% endif %}</p>{% endblock %}
+
+{% block content %}
+<div class="app-panels" data-default-panel="overview">
+
+  <div class="app-panel active" id="panel-overview">
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Total employees</div><div class="h4 mb-0">{{ total_employees }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Present today</div><div class="h4 mb-0">{{ present_today }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Half day today</div><div class="h4 mb-0">{{ half_day_today }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Overtime (hrs)</div><div class="h4 mb-0">{{ overtime_today_total }}</div></div></div></div>
+    </div>
+    <div class="content-card">
+      <h2 class="content-card-title">Download Attendance (CSV)</h2>
+      <form class="row g-2 align-items-end" method="get" action="{% url 'export_attendance_csv' %}">
+        <div class="col-6 col-md-3">
+          <label class="form-label mb-1">Month</label>
+          <select class="form-select form-select-sm" name="month">
+            {% for m in month_choices %}
+              <option value="{{ m }}" {% if export_month == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label mb-1">Year</label>
+          <input class="form-control form-control-sm" type="number" name="year" value="{{ export_year }}" min="2020" max="2100">
+        </div>
+        <div class="col-12 col-md-6 d-flex flex-wrap gap-2">
+          <button class="btn btn-success btn-sm" type="submit">Download Month CSV</button>
+          <a class="btn btn-outline-success btn-sm" href="{% url 'export_attendance_csv' %}?scope=all">Download All CSV</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if not is_ceo_mode %}
+  <div class="app-panel" id="panel-my-attendance">
+    {% include "includes/self_attendance.html" %}
+  </div>
+  {% endif %}
+
+  <div class="app-panel" id="panel-holidays">
+    <div class="row g-4">
+      <div class="col-12 col-lg-6">
+        <div class="content-card h-100">
+          <div class="d-flex justify-content-between mb-3">
+            <h2 class="content-card-title mb-0">Holidays ({{ holiday_month }})</h2>
+            <a class="btn btn-outline-light btn-sm" href="{% url 'holiday_list' %}">Manage</a>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-portal table-sm align-middle mb-0">
+              <thead><tr><th>Date</th><th>Name</th><th>CEO Notice</th></tr></thead>
+              <tbody>
+                {% for h in upcoming_holidays %}
+                  <tr><td>{{ h.date }}</td><td>{{ h.name }}</td><td class="text-muted small">{{ h.ceo_message|truncatechars:35|default:"-" }}</td></tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-muted">No holidays.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="content-card h-100 border-warning-subtle">
+          <h2 class="content-card-title text-warning">Extra Working Days</h2>
+          <div class="table-responsive">
+            <table class="table table-portal table-sm align-middle mb-0">
+              <thead><tr><th>Date</th><th>Reason</th><th>CEO Notice</th></tr></thead>
+              <tbody>
+                {% for h in extra_working_days %}
+                  <tr><td>{{ h.date }}</td><td>{{ h.name }}</td><td class="text-muted small">{{ h.ceo_message|truncatechars:35|default:"-" }}</td></tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-muted">None scheduled.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-panel" id="panel-regularization">
+    <div class="content-card">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="content-card-title mb-0">Pending Regularization</h2>
+        <a class="btn btn-outline-light btn-sm" href="{% url 'regularization_request_list' %}">View all</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-portal table-sm align-middle mb-0">
+          <thead><tr><th>Employee</th><th>Date</th><th>Reason</th><th></th></tr></thead>
+          <tbody>
+            {% for r in pending_regularizations %}
+              <tr>
+                <td>{{ r.employee.employee_id }} - {{ r.employee.username }}</td>
+                <td>{{ r.date }}</td>
+                <td class="text-muted">{{ r.description|truncatechars:70 }}</td>
+                <td class="text-end"><a class="btn btn-outline-primary btn-sm" href="{% url 'regularization_review' r.pk %}">Review</a></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted">No pending requests.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-panel" id="panel-activity">
+    <div class="content-card mb-4">
+      <h2 class="content-card-title">Today's Overtime</h2>
+      <div class="table-responsive">
+        <table class="table table-portal table-sm align-middle mb-0">
+          <thead><tr><th>Emp ID</th><th>Name</th><th>Check Out</th><th>Hours</th><th>Overtime</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for r in today_overtime %}
+              <tr>
+                <td>{{ r.employee.employee_id }}</td>
+                <td>{{ r.employee.username }}</td>
+                <td>{{ r.check_out|default:"-" }}</td>
+                <td>{{ r.working_hours }}</td>
+                <td class="text-warning fw-semibold">{{ r.overtime_hours }}</td>
+                <td>{{ r.status }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-muted">No overtime today.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="content-card">
+      <h2 class="content-card-title">Today Attendance (latest 50)</h2>
+      <div class="table-responsive">
+        <table class="table table-portal table-sm align-middle mb-0">
+          <thead>
+            <tr><th>Emp ID</th><th>Name</th><th>Dept</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Status</th><th>Late</th></tr>
+          </thead>
+          <tbody>
+            {% for r in recent %}
+              <tr>
+                <td>{{ r.employee.employee_id }}</td>
+                <td>{{ r.employee.username }}</td>
+                <td>{{ r.employee.department }}</td>
+                <td>{{ r.check_in|default:"-" }}</td>
+                <td>{{ r.check_out|default:"-" }}</td>
+                <td>{{ r.working_hours }}</td>
+                <td>{{ r.status }}</td>
+                <td>{{ r.is_late|yesno:"Yes,No" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="8" class="text-muted">No records yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

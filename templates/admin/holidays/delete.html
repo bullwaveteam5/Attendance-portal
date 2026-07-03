@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Delete Holiday{% endblock %}
+{% block content %}
+  <h1 class="h5 mb-3">Delete Holiday</h1>
+  <div class="alert alert-warning">
+    Delete <strong>{{ holiday.name }}</strong> on {{ holiday.date }}?
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <a class="btn btn-secondary" href="{% url 'holiday_list' %}">Cancel</a>
+    <button class="btn btn-danger" type="submit">Delete</button>
+  </form>
+{% endblock %}
+

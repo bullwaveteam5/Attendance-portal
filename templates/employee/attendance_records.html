@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Attendance Records{% endblock %}
+{% block page_heading %}Attendance Records{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">{{ period_label }} · Half days: <strong>{{ half_days }}</strong> (check-in after 12:30 PM)</p>{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_dashboard' %}">Dashboard</a>
+{% endblock %}
+
+{% block content %}
+  <div class="panel-toolbar">
+    <form class="row g-2 align-items-end" method="get">
+      <div class="col-6 col-md-3">
+        <label class="form-label mb-1">Month</label>
+        <select class="form-select form-select-sm" name="month">
+          {% for m in month_choices %}
+            <option value="{{ m }}" {% if filter_month == m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label mb-1">Year</label>
+        <input class="form-control form-control-sm" type="number" name="year" value="{{ filter_year }}" min="2020" max="2100">
+      </div>
+      <div class="col-12 col-md-4">
+        <button class="btn btn-primary btn-sm" type="submit">View Records</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="content-card">
+    <div class="alert alert-info small mb-3">
+      <i class="bi bi-info-circle me-1"></i>
+      Employees who check in at <strong>12:30 PM or later</strong> are marked as <strong>Half Day</strong>.
+    </div>
+    <div class="table-responsive">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Check In</th>
+            <th>Check Out</th>
+            <th>Hours</th>
+            <th>Overtime</th>
+            <th>Status</th>
+            <th>Late</th>
+            <th>Office distance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+            <tr class="{% if r.is_half_day_checkin %}table-warning{% endif %}">
+              <td>{{ r.date }}</td>
+              <td>{{ r.check_in|localtime|date:"g:i A"|default:"—" }}</td>
+              <td>{{ r.check_out|localtime|date:"g:i A"|default:"—" }}</td>
+              <td>{{ r.working_hours }}</td>
+              <td>{% if r.overtime_hours > 0 %}{{ r.overtime_hours }}{% else %}—{% endif %}</td>
+              {% include "includes/attendance_status_cell.html" with r=r %}
+              <td>{% if r.is_late %}<span class="text-warning">Yes</span>{% else %}No{% endif %}</td>
+              <td class="small text-muted">
+                {% if r.check_in_distance_m %}{{ r.check_in_distance_m }} m{% else %}—{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="text-muted text-center py-4">No attendance records for this month.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

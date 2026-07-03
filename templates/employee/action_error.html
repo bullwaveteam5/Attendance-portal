@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Action Error{% endblock %}
+{% block content %}
+  <div class="alert alert-danger">
+    {{ message }}
+  </div>
+  <a class="btn btn-secondary" href="{% url 'employee_dashboard' %}">Back</a>
+{% endblock %}
+

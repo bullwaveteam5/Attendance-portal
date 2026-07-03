@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Regularize Attendance{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h5 mb-0">Regularize Attendance</h1>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin_attendance_list' %}">Back</a>
+  </div>
+
+  <div class="glass card border-0 shadow-lg">
+    <div class="card-body p-4">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Employee</label>
+            {{ form.employee }}
+            {{ form.employee.errors }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Date</label>
+            {{ form.date }}
+            {{ form.date.errors }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Check-in</label>
+            {{ form.check_in }}
+            {{ form.check_in.errors }}
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <button class="btn btn-primary" type="submit">Save Check-in</button>
+        </div>
+      </form>
+      <p class="text-muted small mt-3 mb-0">
+        HR can regularize <strong>check-in only</strong>. Check-out must be marked by the employee.
+      </p>
+    </div>
+  </div>
+{% endblock %}
+

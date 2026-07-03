@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Praise Letter{% endblock %}
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+      <div class="card praise-letter-card praise-letter-document">
+        <div class="card-body p-4 p-md-5">
+          <div class="text-center mb-4">
+            <div class="text-uppercase small text-muted fw-semibold" style="letter-spacing:0.15em;">Letter of Praise</div>
+            <h1 class="h4 mt-2 mb-0">{{ letter.title }}</h1>
+          </div>
+          <div class="text-muted small mb-4">
+            To: <strong>{{ letter.employee.employee_id }} — {{ letter.employee.username }}</strong><br />
+            From: CEO · {{ letter.issued_by.employee_id|default:"CEO" }}<br />
+            Date: {{ letter.issued_at|date:"F d, Y" }}
+          </div>
+          <div class="praise-letter-body mb-4">{{ letter.message|linebreaks }}</div>
+          <div class="text-end text-muted small">— Capital Bull Wave Private LTD.</div>
+        </div>
+      </div>
+      <div class="mt-3 d-flex gap-2">
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'praise_letter_list' %}">← Back</a>
+        <a class="btn btn-outline-success btn-sm" href="{% url 'praise_letter_create' %}?employee={{ letter.employee.pk }}">Send another to this employee</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

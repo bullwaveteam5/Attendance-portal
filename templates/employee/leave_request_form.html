@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Request Leave{% endblock %}
+{% block page_heading %}Request Leave{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Submit leave dates and reason to HR</p>{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_leave_requests' %}">← My Requests</a>
+{% endblock %}
+
+{% block content %}
+  <div class="content-card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Leave Type</label>
+          {{ form.leave_type }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Start Date</label>
+          {{ form.start_date }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">End Date</label>
+          {{ form.end_date }}
+        </div>
+        <div class="col-12">
+          <label class="form-label">Reason</label>
+          {{ form.reason }}
+        </div>
+      </div>
+      <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-success">Submit to HR</button>
+        <a class="btn btn-outline-secondary" href="{% url 'employee_leave_requests' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

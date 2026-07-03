@@ -1,0 +1,35 @@
+{% if messages %}
+<div class="toast-overlay" id="toastOverlay">
+  {% for message in messages %}
+  <div class="toast-popup {% if message.tags %}{{ message.tags }}{% else %}info{% endif %}" data-toast>
+    <div class="toast-popup-icon">
+      {% if 'success' in message.tags %}✓
+      {% elif 'error' in message.tags or 'danger' in message.tags %}!
+      {% elif 'warning' in message.tags %}⚠
+      {% else %}ℹ{% endif %}
+    </div>
+    <div class="toast-popup-title">
+      {% if 'success' in message.tags %}Success
+      {% elif 'error' in message.tags or 'danger' in message.tags %}Attention
+      {% elif 'warning' in message.tags %}Warning
+      {% else %}Notification{% endif %}
+    </div>
+    <div class="toast-popup-body">{{ message }}</div>
+    <button type="button" class="btn btn-primary btn-sm btn-dismiss" onclick="dismissToast(this)">Got it</button>
+  </div>
+  {% endfor %}
+</div>
+<script>
+  function dismissToast(btn) {
+    const overlay = document.getElementById('toastOverlay');
+    if (overlay) overlay.remove();
+  }
+  document.getElementById('toastOverlay')?.addEventListener('click', function(e) {
+    if (e.target === this) dismissToast();
+  });
+  setTimeout(function() {
+    const overlay = document.getElementById('toastOverlay');
+    if (overlay) overlay.remove();
+  }, 6000);
+</script>
+{% endif %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Edit Organization Hierarchy{% endblock %}
+
+{% block content %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4 page-header">
+    <div>
+      <h1 class="h4 mb-0">Edit Organization Hierarchy</h1>
+      <div class="text-muted small">Assign Director, CEO, and primary HR for the org chart</div>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'director_dashboard' %}">← Director home</a>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-4">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+          </div>
+        {% endfor %}
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Save hierarchy</button>
+          <a class="btn btn-outline-secondary" href="{% url 'org_hierarchy' %}">Cancel</a>
+        </div>
+      </form>
+      <p class="text-muted small mt-4 mb-0">
+        Create Director, CEO, and HR accounts first if they do not appear in the dropdowns.
+        Employees always report to HR in the chart.
+      </p>
+    </div>
+  </div>
+{% endblock %}

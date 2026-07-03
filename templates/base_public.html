@@ -1,0 +1,22 @@
+{% load static %}
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Attendance{% endblock %} | Capital Bull Wave Private LTD.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="{% static 'css/app.css' %}" rel="stylesheet" />
+  </head>
+  <body class="app-bg">
+    <div class="bg-overlay"></div>
+    <div class="container py-5 py-md-5">
+      {% include "includes/toast_popup.html" %}
+      {% block content %}{% endblock %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_public_js %}{% endblock %}
+  </body>
+</html>

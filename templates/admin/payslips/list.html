@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Pay Slips{% endblock %}
+{% block page_heading %}Employee Pay Slips{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-success btn-sm" href="{% url 'hr_payslip_upload' %}"><i class="bi bi-upload me-1"></i>Upload Pay Slip</a>
+{% endblock %}
+
+{% block content %}
+  <div class="content-card">
+    <div class="table-responsive">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
+          <tr><th>Employee</th><th>Period</th><th>Title</th><th>Uploaded by</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+          {% for slip in payslips %}
+            <tr>
+              <td>{{ slip.employee.employee_id }} — {{ slip.employee.username }}</td>
+              <td>{{ slip.period_label }}</td>
+              <td>{{ slip.title|default:"—" }}</td>
+              <td class="text-muted">{{ slip.uploaded_by.employee_id|default:"—" }}</td>
+              <td class="text-muted small">{{ slip.uploaded_at|date:"M d, Y" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-muted text-center py-4">No pay slips uploaded yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

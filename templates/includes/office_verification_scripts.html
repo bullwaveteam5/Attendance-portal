@@ -1,0 +1,10 @@
+{% if office_verification_required %}
+{% load static %}
+<script>
+  window.OFFICE_VERIFICATION = {
+    requireGps: {{ office_gps_required|yesno:"true,false" }},
+    requireIp: {{ office_ip_required|yesno:"true,false" }}
+  };
+</script>
+<script src="{% static 'js/location-verify.js' %}"></script>
+{% endif %}

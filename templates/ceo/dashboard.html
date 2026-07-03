@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}CEO Dashboard{% endblock %}
+{% block page_heading %}Command Center{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Today: {{ today }}</p>{% endblock %}
+
+{% block content %}
+<div class="app-panels" data-default-panel="overview">
+
+  <div class="app-panel active" id="panel-overview">
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Employees</div><div class="h4 mb-0">{{ total_employees }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">HR staff</div><div class="h4 mb-0">{{ hr_count }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Present today</div><div class="h4 mb-0">{{ present_today }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Absent today</div><div class="h4 mb-0">{{ absent_today }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending regularization</div><div class="h4 mb-0">{{ pending_regularizations }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Praise letters (month)</div><div class="h4 mb-0">{{ praise_letters_month }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Your letters sent</div><div class="h4 mb-0">{{ praise_letters_sent }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">HR overrides</div><div class="h4 mb-0">{{ ceo_overrides }}</div></div></div></div>
+    </div>
+    <div class="content-card">
+      <h2 class="content-card-title">Download Attendance (CSV)</h2>
+      <form class="row g-2 align-items-end" method="get" action="{% url 'ceo_export_attendance_csv' %}">
+        <div class="col-6 col-md-3">
+          <label class="form-label mb-1">Month</label>
+          <select class="form-select form-select-sm" name="month">
+            {% for m in month_choices %}
+              <option value="{{ m }}" {% if export_month == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label mb-1">Year</label>
+          <input class="form-control form-control-sm" type="number" name="year" value="{{ export_year }}" min="2020" max="2100">
+        </div>
+        <div class="col-12 col-md-6 d-flex flex-wrap gap-2">
+          <button class="btn btn-success btn-sm" type="submit">Download Month CSV</button>
+          <a class="btn btn-outline-success btn-sm" href="{% url 'ceo_export_attendance_csv' %}?scope=all">Download All CSV</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="app-panel" id="panel-my-attendance">
+    {% include "includes/self_attendance.html" %}
+  </div>
+
+  <div class="app-panel" id="panel-praise">
+    <div class="content-card praise-letter-card">
+      <div class="d-flex justify-content-between mb-3">
+        <h2 class="content-card-title mb-0">Recent Praise Letters</h2>
+        <a class="btn btn-outline-light btn-sm" href="{% url 'praise_letter_list' %}">View all</a>
+      </div>
+      {% for p in recent_praise %}
+        <div class="praise-letter-item mb-3">
+          <div class="fw-semibold">{{ p.title }}</div>
+          <div class="small text-muted">To {{ p.employee.employee_id }} — {{ p.employee.username }}</div>
+          <p class="small mb-0 mt-1">{{ p.message|truncatechars:100 }}</p>
+        </div>
+      {% empty %}
+        <p class="text-muted small mb-0">No praise letters issued yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="app-panel" id="panel-pending">
+    <div class="content-card">
+      <h2 class="content-card-title">Pending HR Review</h2>
+      <div class="table-responsive">
+        <table class="table table-portal table-sm align-middle mb-0">
+          <thead><tr><th>Employee</th><th>Date</th><th></th></tr></thead>
+          <tbody>
+            {% for r in pending_regs %}
+              <tr>
+                <td>{{ r.employee.employee_id }}</td>
+                <td>{{ r.date }}</td>
+                <td class="text-end"><a class="btn btn-outline-primary btn-sm" href="{% url 'regularization_review' r.pk %}">Review</a></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="text-muted">No pending requests.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-panel" id="panel-overrides">
+    <div class="content-card">
+      <h2 class="content-card-title">Your HR Decision Overrides</h2>
+      <div class="table-responsive">
+        <table class="table table-portal table-sm align-middle mb-0">
+          <thead><tr><th>Employee</th><th>Date</th><th>Status</th><th>HR was</th><th>CEO note</th></tr></thead>
+          <tbody>
+            {% for r in recent_overrides %}
+              <tr>
+                <td>{{ r.employee.employee_id }}</td>
+                <td>{{ r.date }}</td>
+                <td>{{ r.status }}</td>
+                <td class="text-muted">{{ r.reviewed_by.employee_id|default:"-" }}</td>
+                <td class="text-muted">{{ r.ceo_note|default:"-" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-muted">No overrides yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

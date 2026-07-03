@@ -1,0 +1,20 @@
+<div class="content-card attendance-action-card">
+  <h2 class="content-card-title">My Attendance Today</h2>
+  <div class="row g-3 align-items-center">
+    <div class="col-12 col-md-6">
+      {% if my_attendance_record %}
+        <div class="status-grid">
+          <div><span class="label">Status</span><strong>{{ my_attendance_record.status }}</strong></div>
+          <div><span class="label">Check-in</span><strong>{{ my_attendance_record.check_in|default:"—" }}</strong></div>
+          <div><span class="label">Check-out</span><strong>{{ my_attendance_record.check_out|default:"—" }}</strong></div>
+          <div><span class="label">Hours</span><strong>{{ my_attendance_record.working_hours }}</strong></div>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">No attendance marked yet today.</p>
+      {% endif %}
+    </div>
+    <div class="col-12 col-md-6">
+      {% include "includes/attendance_check_buttons.html" with my_can_check_in=my_can_check_in my_can_check_out=my_can_check_out %}
+    </div>
+  </div>
+</div>

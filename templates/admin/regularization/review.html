@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Review Regularization{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h5 mb-0">Review Regularization</h1>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'regularization_request_list' %}">Back</a>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="mb-2"><strong>Employee:</strong> {{ reg_req.employee.employee_id }} — {{ reg_req.employee.username }}</div>
+      <div class="mb-2"><strong>Date:</strong> {{ reg_req.date }}</div>
+      <div class="mb-0"><strong>Employee reason:</strong></div>
+      <p class="text-muted mb-0">{{ reg_req.description }}</p>
+    </div>
+  </div>
+
+  <div class="glass card border-0 shadow-lg">
+    <div class="card-body p-4">
+      <h2 class="h6 mb-3">Set check-in & approve</h2>
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Check-in</label>
+            {{ form.check_in }}
+            {{ form.check_in.errors }}
+          </div>
+          <div class="col-12">
+            <label class="form-label">HR note (optional)</label>
+            {{ form.hr_note }}
+          </div>
+        </div>
+        <p class="text-muted small mt-3 mb-0">
+          HR can update <strong>check-in only</strong>. The employee must mark check-out themselves.
+        </p>
+        <div class="d-flex gap-2 mt-4">
+          <button class="btn btn-success" type="submit" name="action" value="approve">Approve & Save</button>
+          <button class="btn btn-danger" type="submit" name="action" value="reject">Reject</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

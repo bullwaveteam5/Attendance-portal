@@ -1,0 +1,21 @@
+<div class="d-flex gap-2 flex-wrap {% if not inline %}mb-3{% endif %}">
+  <form method="post" action="{% url 'employee_check_in' %}" class="js-attendance-form">
+    {% csrf_token %}
+    <button class="btn btn-success {{ button_class|default:'btn-sm px-3' }}" type="submit" {% if not my_can_check_in %}disabled{% endif %}>
+      <i class="bi bi-box-arrow-in-right me-1"></i> Check In
+    </button>
+  </form>
+  <form method="post" action="{% url 'employee_check_out' %}" class="js-attendance-form">
+    {% csrf_token %}
+    <button class="btn btn-primary {{ button_class|default:'btn-sm px-3' }}" type="submit" {% if not my_can_check_out %}disabled{% endif %}>
+      <i class="bi bi-box-arrow-right me-1"></i> Check Out
+    </button>
+  </form>
+</div>
+{% if office_gps_required %}
+  <p class="text-muted small mt-2 mb-0"><i class="bi bi-geo-alt me-1"></i> You must be at the office (GPS). WiFi or mobile data both work.</p>
+{% elif office_verification_required %}
+  <p class="text-muted small mt-2 mb-0"><i class="bi bi-geo-alt me-1"></i> Location verification required for attendance.</p>
+{% else %}
+  <p class="text-muted small mt-2 mb-0">Check-in after <strong>12:30 PM</strong> counts as half day.</p>
+{% endif %}

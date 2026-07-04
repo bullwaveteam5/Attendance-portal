@@ -1,33 +1,66 @@
-{% extends "base.html" %}
-{% block title %}My Praise Letters{% endblock %}
-{% block page_heading %}Praise Letters{% endblock %}
-{% block page_subheading %}<p class="app-page-subtitle mb-0">Recognition from the CEO — download uploaded letters</p>{% endblock %}
-{% block page_actions %}
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_dashboard' %}">Dashboard</a>
-{% endblock %}
-
-{% block content %}
-  <div class="row g-4">
-    {% for letter in letters %}
-      <div class="col-12 col-md-6">
-        <div class="content-card praise-letter-card h-100">
-          <div class="text-uppercase small text-warning fw-semibold mb-2" style="letter-spacing:0.1em;">CEO Praise</div>
-          <h2 class="h5 mb-2">{{ letter.title }}</h2>
-          <div class="text-muted small mb-3">{{ letter.issued_at|date:"F d, Y" }}</div>
-          {% if letter.message %}
-            <p class="mb-3">{{ letter.message|linebreaks }}</p>
-          {% endif %}
-          {% if letter.document %}
-            <a class="btn btn-success btn-sm" href="{% url 'praise_letter_download' letter.pk %}">
-              <i class="bi bi-download me-1"></i>Download Letter
-            </a>
-          {% endif %}
-        </div>
-      </div>
-    {% empty %}
-      <div class="col-12">
-        <div class="content-card text-muted text-center py-4">No praise letters yet. Keep up the great work!</div>
-      </div>
-    {% endfor %}
-  </div>
-{% endblock %}
+{% extends "base.html" %}
+
+{% block title %}My Praise Letters{% endblock %}
+
+{% block page_heading %}Praise Letters{% endblock %}
+
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Recognition from the CEO — download uploaded letters</p>{% endblock %}
+
+{% block page_actions %}
+
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_dashboard' %}">Dashboard</a>
+
+{% endblock %}
+
+
+
+{% block content %}
+
+  <div class="row g-4">
+
+    {% for letter in letters %}
+
+      <div class="col-12 col-md-6">
+
+        <div class="content-card praise-letter-card h-100">
+
+          <div class="text-uppercase small text-warning fw-semibold mb-2" style="letter-spacing:0.1em;">CEO Praise</div>
+
+          <h2 class="h5 mb-2">{{ letter.title }}</h2>
+
+          <div class="text-muted small mb-3">{{ letter.issued_at|date:"F d, Y" }}</div>
+
+          {% if letter.message %}
+
+            <p class="mb-3">{{ letter.message|linebreaks }}</p>
+
+          {% endif %}
+
+          {% if letter.document %}
+
+            <a class="btn btn-success btn-sm" href="{% url 'praise_letter_download' letter.pk %}">
+
+              <i class="bi bi-download me-1"></i>Download Letter
+
+            </a>
+
+          {% endif %}
+
+        </div>
+
+      </div>
+
+    {% empty %}
+
+      <div class="col-12">
+
+        <div class="content-card text-muted text-center py-4">No praise letters yet. Keep up the great work!</div>
+
+      </div>
+
+    {% endfor %}
+
+  </div>
+
+{% endblock %}
+

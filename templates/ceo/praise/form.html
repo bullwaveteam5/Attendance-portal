@@ -1,29 +1,58 @@
-{% extends "base.html" %}
-{% block title %}{{ title }}{% endblock %}
-{% block page_heading %}{{ title }}{% endblock %}
-{% block page_subheading %}<p class="app-page-subtitle mb-0">Upload a file from your computer or write a message — employee can download the letter.</p>{% endblock %}
-{% block page_actions %}
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'praise_letter_list' %}">← All Letters</a>
-{% endblock %}
-
-{% block content %}
-  <div class="content-card praise-letter-card">
-    <form method="post" enctype="multipart/form-data" novalidate>
-      {% csrf_token %}
-      {% for field in form %}
-        <div class="mb-3">
-          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% if field.name == 'document' %}
-            <div class="form-text">PDF, Word, or image from your computer (optional if you write a message).</div>
-          {% endif %}
-          {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-        </div>
-      {% endfor %}
-      <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-success"><i class="bi bi-send me-1"></i>Send Praise Letter</button>
-        <a class="btn btn-outline-secondary" href="{% url 'praise_letter_list' %}">Cancel</a>
-      </div>
-    </form>
-  </div>
-{% endblock %}
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_heading %}{{ title }}{% endblock %}
+
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Upload a file from your computer or write a message — employee can download the letter.</p>{% endblock %}
+
+{% block page_actions %}
+
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'praise_letter_list' %}">← All Letters</a>
+
+{% endblock %}
+
+
+
+{% block content %}
+
+  <div class="content-card praise-letter-card">
+
+    <form method="post" enctype="multipart/form-data" novalidate>
+
+      {% csrf_token %}
+
+      {% for field in form %}
+
+        <div class="mb-3">
+
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+
+          {{ field }}
+
+          {% if field.name == 'document' %}
+
+            <div class="form-text">PDF, Word, or image from your computer (optional if you write a message).</div>
+
+          {% endif %}
+
+          {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+
+        </div>
+
+      {% endfor %}
+
+      <div class="d-flex gap-2">
+
+        <button type="submit" class="btn btn-success"><i class="bi bi-send me-1"></i>Send Praise Letter</button>
+
+        <a class="btn btn-outline-secondary" href="{% url 'praise_letter_list' %}">Cancel</a>
+
+      </div>
+
+    </form>
+
+  </div>
+
+{% endblock %}
+

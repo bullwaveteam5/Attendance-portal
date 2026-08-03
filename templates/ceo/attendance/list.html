@@ -1,86 +1,105 @@
 {% extends "base.html" %}
 {% block title %}Attendance{% endblock %}
-{% block content %}
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <h1 class="h5 mb-0">Attendance Records (CEO view)</h1>
-    <div class="d-flex flex-wrap gap-2">
-      <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">Dashboard</a>
-      <a class="btn btn-outline-success btn-sm" href="{% url 'ceo_export_attendance_csv' %}?month={{ filters.month }}&year={{ filters.year }}&employee_id={{ filters.employee_id }}&department={{ filters.department }}">Download Month CSV</a>
-      <a class="btn btn-success btn-sm" href="{% url 'ceo_export_attendance_csv' %}?scope=all&employee_id={{ filters.employee_id }}&department={{ filters.department }}">Download All CSV</a>
-      <a class="btn btn-outline-danger btn-sm" href="{% url 'ceo_export_attendance_pdf' %}?month={{ filters.month }}&year={{ filters.year }}&employee_id={{ filters.employee_id }}&department={{ filters.department }}">Export PDF</a>
-    </div>
+{% block page_heading %}Attendance Records{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">CEO view · live check-in / check-out from the database</p>{% endblock %}
+{% block page_actions %}
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">Dashboard</a>
+    <a class="btn btn-outline-success btn-sm" href="{% url 'ceo_export_attendance_csv' %}?month={{ filters.month }}&year={{ filters.year }}&employee_id={{ filters.employee_id }}&department={{ filters.department }}">CSV</a>
+    <a class="btn btn-outline-danger btn-sm" href="{% url 'ceo_export_attendance_pdf' %}?month={{ filters.month }}&year={{ filters.year }}&employee_id={{ filters.employee_id }}&department={{ filters.department }}">PDF</a>
   </div>
+{% endblock %}
 
-  <form class="card card-body mb-3" method="get">
-    <div class="row g-2 align-items-end">
-      <div class="col-md-2">
-        <label class="form-label mb-1">Month</label>
+{% block content %}
+  <div class="content-card mb-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Month</label>
         <select class="form-select" name="month">
           {% for m in month_choices %}
             <option value="{{ m }}" {% if filters.month == m|stringformat:"s" %}selected{% endif %}>{{ m }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2">
-        <label class="form-label mb-1">Year</label>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Year</label>
         <input class="form-control" type="number" name="year" value="{{ filters.year }}" min="2020" max="2100">
       </div>
-      <div class="col-md-2">
-        <label class="form-label mb-1">Specific date</label>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Date</label>
         <input class="form-control" type="date" name="date" value="{{ filters.date }}">
       </div>
-      <div class="col-md-2">
-        <label class="form-label mb-1">Employee ID</label>
-        <input class="form-control" name="employee_id" value="{{ filters.employee_id }}" placeholder="e.g. E001">
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Employee ID</label>
+        <input class="form-control" name="employee_id" value="{{ filters.employee_id }}" placeholder="e.g. 0006">
       </div>
-      <div class="col-md-2">
-        <label class="form-label mb-1">Department</label>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Department</label>
         <input class="form-control" name="department" value="{{ filters.department }}" placeholder="e.g. Sales">
       </div>
-      <div class="col-md-2">
+      <div class="col-6 col-md-2">
         <button class="btn btn-primary w-100" type="submit">Filter</button>
       </div>
-    </div>
-  </form>
+    </form>
+  </div>
 
-  <div class="table-responsive">
-    <table class="table table-sm table-striped align-middle">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Emp ID</th>
-          <th>Name</th>
-          <th>Dept</th>
-          <th>Check In</th>
-          <th>Check Out</th>
-          <th>Hours</th>
-          <th>Overtime</th>
-          <th>Status</th>
-          <th>Late</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in records %}
+  <div class="content-card">
+    <div class="table-responsive d-none d-lg-block">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
           <tr>
-            <td>{{ r.date }}</td>
-            <td>{{ r.employee.employee_id }}</td>
-            <td>{{ r.employee.username }}</td>
-            <td>{{ r.employee.department }}</td>
-            <td>{{ r.check_in|default:"-" }}</td>
-            <td>{{ r.check_out|default:"-" }}</td>
-            <td>{{ r.working_hours }}</td>
-            <td>{% if r.overtime_hours > 0 %}{{ r.overtime_hours }}{% else %}-{% endif %}</td>
-            <td>{{ r.status }}</td>
-            <td>{{ r.is_late|yesno:"Yes,No" }}</td>
-            <td class="text-end">
-              <a class="btn btn-outline-primary btn-sm" href="{% url 'ceo_employee_portal' r.employee.pk %}">View</a>
-            </td>
+            <th>Date</th>
+            <th>Emp ID</th>
+            <th>Name</th>
+            <th>Dept</th>
+            <th>Check In</th>
+            <th>Check Out</th>
+            <th>Hours</th>
+            <th>Overtime</th>
+            <th>Status</th>
+            <th>Late</th>
+            <th></th>
           </tr>
-        {% empty %}
-          <tr><td colspan="11" class="text-muted">No records.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for r in records %}
+            <tr>
+              <td>{{ r.date }}</td>
+              <td>{{ r.employee.employee_id }}</td>
+              <td>{{ r.employee.username }}</td>
+              <td>{{ r.employee.department }}</td>
+              <td>{{ r.check_in|default:"—" }}</td>
+              <td>{{ r.check_out|default:"—" }}</td>
+              <td>{{ r.working_hours }}</td>
+              <td>{% if r.overtime_hours > 0 %}{{ r.overtime_hours }}{% else %}—{% endif %}</td>
+              <td>{% include "includes/attendance_status_badge.html" with r=r %}</td>
+              <td>{{ r.is_late|yesno:"Yes,No" }}</td>
+              <td class="text-end">
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'ceo_employee_portal' r.employee.pk %}">View</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="11" class="text-muted text-center py-4">No records.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="data-card-list d-lg-none">
+      {% for r in records %}
+        <article class="data-item-card">
+          <div class="d-flex justify-content-between gap-2 mb-1">
+            <div>
+              <div class="data-item-title">{{ r.employee.username }}</div>
+              <div class="data-item-meta">{{ r.employee.employee_id }} · {{ r.date }}</div>
+            </div>
+            {% include "includes/attendance_status_badge.html" with r=r %}
+          </div>
+          <div class="small mb-2">In {{ r.check_in|default:"—" }} · Out {{ r.check_out|default:"—" }} · {{ r.working_hours }} hrs</div>
+          <a class="btn btn-outline-primary btn-sm w-100" href="{% url 'ceo_employee_portal' r.employee.pk %}">View portal</a>
+        </article>
+      {% empty %}
+        <p class="text-muted mb-0">No records.</p>
+      {% endfor %}
+    </div>
   </div>
 {% endblock %}

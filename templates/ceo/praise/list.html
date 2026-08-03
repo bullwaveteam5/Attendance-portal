@@ -1,47 +1,72 @@
 {% extends "base.html" %}
 {% block title %}Praise Letters{% endblock %}
+{% block page_heading %}Praise Letters{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Live letters issued to employees from the database</p>{% endblock %}
+{% block page_actions %}
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">CEO Home</a>
+    <a class="btn btn-success btn-sm" href="{% url 'praise_letter_create' %}">Issue New Letter</a>
+  </div>
+{% endblock %}
+
 {% block content %}
-  <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
-    <h1 class="h5 mb-0">Praise Letters</h1>
-    <div class="d-flex gap-2">
-      <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">CEO Home</a>
-      <a class="btn btn-success btn-sm" href="{% url 'praise_letter_create' %}">Issue New Letter</a>
-    </div>
+  <div class="content-card mb-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-md-8">
+        <label class="form-label small mb-1">Employee ID</label>
+        <input class="form-control" name="employee_id" value="{{ employee_id }}" placeholder="Filter by employee ID" />
+      </div>
+      <div class="col-6 col-md-2">
+        <button class="btn btn-outline-secondary w-100" type="submit">Search</button>
+      </div>
+      <div class="col-6 col-md-2">
+        <a class="btn btn-outline-secondary w-100" href="{% url 'praise_letter_list' %}">Reset</a>
+      </div>
+    </form>
   </div>
 
-  <form class="mb-3" method="get">
-    <div class="input-group">
-      <input class="form-control" name="employee_id" value="{{ employee_id }}" placeholder="Filter by employee ID" />
-      <button class="btn btn-outline-secondary" type="submit">Search</button>
-    </div>
-  </form>
-
-  <div class="table-responsive">
-    <table class="table table-sm table-striped align-middle">
-      <thead>
-        <tr>
-          <th>Employee</th>
-          <th>Title</th>
-          <th>Message</th>
-          <th>Issued</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for letter in letters %}
+  <div class="content-card">
+    <div class="table-responsive d-none d-md-block">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
           <tr>
-            <td>{{ letter.employee.employee_id }} — {{ letter.employee.username }}</td>
-            <td>{{ letter.title }}</td>
-            <td class="text-muted">{{ letter.message|truncatechars:60 }}</td>
-            <td>{{ letter.issued_at|date:"M d, Y H:i" }}</td>
-            <td class="text-end">
-              <a class="btn btn-outline-primary btn-sm" href="{% url 'praise_letter_detail' letter.pk %}">View</a>
-            </td>
+            <th>Employee</th>
+            <th>Title</th>
+            <th>Message</th>
+            <th>Issued</th>
+            <th></th>
           </tr>
-        {% empty %}
-          <tr><td colspan="5" class="text-muted">No praise letters yet.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for letter in letters %}
+            <tr>
+              <td>{{ letter.employee.employee_id }} — {{ letter.employee.username }}</td>
+              <td>{{ letter.title }}</td>
+              <td class="text-muted">{{ letter.message|truncatechars:60 }}</td>
+              <td class="small">{{ letter.issued_at|date:"M d, Y H:i" }}</td>
+              <td class="text-end">
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'praise_letter_detail' letter.pk %}">View</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-muted text-center py-4">No praise letters yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="data-card-list d-md-none">
+      {% for letter in letters %}
+        <article class="data-item-card">
+          <div class="data-item-title">{{ letter.title }}</div>
+          <div class="data-item-meta mb-1">{{ letter.employee.employee_id }} — {{ letter.employee.username }}</div>
+          <div class="small mb-2">{{ letter.message|truncatechars:100 }}</div>
+          <div class="small text-muted mb-2">{{ letter.issued_at|date:"M d, Y H:i" }}</div>
+          <a class="btn btn-outline-primary btn-sm w-100" href="{% url 'praise_letter_detail' letter.pk %}">View</a>
+        </article>
+      {% empty %}
+        <p class="text-muted text-center mb-0 py-3">No praise letters yet.</p>
+      {% endfor %}
+    </div>
   </div>
 {% endblock %}

@@ -8,12 +8,60 @@
 
   <div class="app-panel active" id="panel-overview">
     <div class="row g-3 mb-4">
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Total employees</div><div class="h4 mb-0">{{ total_employees }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Present today</div><div class="h4 mb-0">{{ present_today }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Half day today</div><div class="h4 mb-0">{{ half_day_today }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending leave</div><div class="h4 mb-0 text-warning">{{ pending_leave_count }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">On leave today</div><div class="h4 mb-0 text-info">{{ on_leave_today }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending holidays</div><div class="h4 mb-0">{{ pending_holiday_count }}</div></div></div></div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'employee_list' %}">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Total employees</div>
+            <div class="stat-value">{{ total_employees }}</div>
+            <span class="stat-hint">Employee records →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'admin_attendance_list' %}?date={{ today|date:'Y-m-d' }}&status=Present">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Present today</div>
+            <div class="stat-value">{{ present_today }}</div>
+            <span class="stat-hint">Attendance →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'admin_attendance_list' %}?date={{ today|date:'Y-m-d' }}&status=Half+Day">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Half day today</div>
+            <div class="stat-value">{{ half_day_today }}</div>
+            <span class="stat-hint">Half days →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'hr_leave_request_list' %}?status=pending">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Pending leave</div>
+            <div class="stat-value text-warning">{{ pending_leave_count }}</div>
+            <span class="stat-hint">Leave records →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'admin_attendance_list' %}?date={{ today|date:'Y-m-d' }}&status=On+Leave">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">On leave today</div>
+            <div class="stat-value text-info">{{ on_leave_today }}</div>
+            <span class="stat-hint">On leave →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'holiday_list' %}?status=pending">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Pending holidays</div>
+            <div class="stat-value">{{ pending_holiday_count }}</div>
+            <span class="stat-hint">Holidays →</span>
+          </div></div>
+        </a>
+      </div>
     </div>
 
     {% if pending_holiday_count %}
@@ -40,24 +88,7 @@
         <h2 class="content-card-title mb-0">Pending Leave Approvals</h2>
         <a class="btn btn-warning btn-sm" href="{% url 'hr_leave_request_list' %}?status=pending">Review all</a>
       </div>
-      <div class="table-responsive">
-        <table class="table table-portal table-sm align-middle mb-0">
-          <thead><tr><th>Employee</th><th>Dates</th><th>Type</th><th>Reason</th><th></th></tr></thead>
-          <tbody>
-            {% for lr in pending_leave_requests %}
-              <tr>
-                <td>{{ lr.employee.employee_id }} — {{ lr.employee.username }}</td>
-                <td class="small">{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</td>
-                <td>{{ lr.get_leave_type_display }}</td>
-                <td class="text-muted small">{{ lr.reason|truncatechars:50 }}</td>
-                <td class="text-end"><a class="btn btn-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">Approve / Reject</a></td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="5" class="text-muted">No pending leave requests.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+      {% include "includes/leave_request_rows.html" with leave_requests=pending_leave_requests show_reason=True empty_text="No pending leave requests." %}
     </div>
     <div class="content-card">
       <h2 class="content-card-title">Download Attendance (CSV)</h2>
@@ -135,7 +166,7 @@
       <div class="col-12 col-lg-6">
         <div class="content-card h-100 border-warning-subtle">
           <h2 class="content-card-title text-warning">Extra Working Days</h2>
-          <div class="table-responsive">
+          <div class="table-responsive d-none d-sm-block">
             <table class="table table-portal table-sm align-middle mb-0">
               <thead><tr><th>Date</th><th>Reason</th><th>CEO Notice</th></tr></thead>
               <tbody>
@@ -147,6 +178,16 @@
               </tbody>
             </table>
           </div>
+          <div class="data-card-list d-sm-none">
+            {% for h in extra_working_days %}
+              <article class="data-item-card">
+                <div class="data-item-title">{{ h.name }}</div>
+                <div class="data-item-meta">{{ h.date }}{% if h.ceo_message %} · {{ h.ceo_message|truncatechars:40 }}{% endif %}</div>
+              </article>
+            {% empty %}
+              <p class="text-muted mb-0">None scheduled.</p>
+            {% endfor %}
+          </div>
         </div>
       </div>
     </div>
@@ -156,9 +197,9 @@
     <div class="content-card">
       <div class="d-flex align-items-center justify-content-between mb-3">
         <h2 class="content-card-title mb-0">Pending Regularization</h2>
-        <a class="btn btn-outline-light btn-sm" href="{% url 'regularization_request_list' %}">View all</a>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'regularization_request_list' %}">View all</a>
       </div>
-      <div class="table-responsive">
+      <div class="table-responsive d-none d-md-block">
         <table class="table table-portal table-sm align-middle mb-0">
           <thead><tr><th>Employee</th><th>Date</th><th>Reason</th><th></th></tr></thead>
           <tbody>
@@ -175,13 +216,25 @@
           </tbody>
         </table>
       </div>
+      <div class="data-card-list d-md-none">
+        {% for r in pending_regularizations %}
+          <article class="data-item-card">
+            <div class="data-item-title">{{ r.employee.username }}</div>
+            <div class="data-item-meta mb-2">{{ r.employee.employee_id }} · {{ r.date }}</div>
+            <div class="small text-muted mb-2">{{ r.description|truncatechars:100 }}</div>
+            <a class="btn btn-outline-primary btn-sm w-100" href="{% url 'regularization_review' r.pk %}">Review</a>
+          </article>
+        {% empty %}
+          <p class="text-muted mb-0">No pending requests.</p>
+        {% endfor %}
+      </div>
     </div>
   </div>
 
   <div class="app-panel" id="panel-activity">
     <div class="content-card mb-4">
       <h2 class="content-card-title">Today's Overtime</h2>
-      <div class="table-responsive">
+      <div class="table-responsive d-none d-md-block">
         <table class="table table-portal table-sm align-middle mb-0">
           <thead><tr><th>Emp ID</th><th>Name</th><th>Check Out</th><th>Hours</th><th>Overtime</th><th>Status</th></tr></thead>
           <tbody>
@@ -200,33 +253,18 @@
           </tbody>
         </table>
       </div>
-    </div>
-    <div class="content-card">
-      <h2 class="content-card-title">Today Attendance (latest 50)</h2>
-      <div class="table-responsive">
-        <table class="table table-portal table-sm align-middle mb-0">
-          <thead>
-            <tr><th>Emp ID</th><th>Name</th><th>Dept</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Status</th><th>Late</th></tr>
-          </thead>
-          <tbody>
-            {% for r in recent %}
-              <tr>
-                <td>{{ r.employee.employee_id }}</td>
-                <td>{{ r.employee.username }}</td>
-                <td>{{ r.employee.department }}</td>
-                <td>{{ r.check_in|default:"-" }}</td>
-                <td>{{ r.check_out|default:"-" }}</td>
-                <td>{{ r.working_hours }}</td>
-                <td>{{ r.status }}</td>
-                <td>{{ r.is_late|yesno:"Yes,No" }}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="8" class="text-muted">No records yet.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="data-card-list d-md-none">
+        {% for r in today_overtime %}
+          <article class="data-item-card">
+            <div class="data-item-title">{{ r.employee.username }}</div>
+            <div class="data-item-meta">{{ r.employee.employee_id }} · OT {{ r.overtime_hours }} hrs</div>
+          </article>
+        {% empty %}
+          <p class="text-muted mb-0">No overtime today.</p>
+        {% endfor %}
       </div>
     </div>
+    {% include "includes/today_attendance_board.html" with today_attendance_board=today_attendance_board today=today title="Today Attendance (all employees)" card_class="mb-0" %}
   </div>
 
 </div>

@@ -331,13 +331,35 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-/* ── Stat cards ── */
+/* ── Stat cards (clickable overview tiles) ── */
 .portal-layout .stat-card {
   background: var(--portal-surface) !important;
   border: 1px solid var(--portal-border) !important;
   border-radius: 8px !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
   backdrop-filter: none !important;
+  height: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.portal-layout a.stat-card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  height: 100%;
+}
+
+.portal-layout a.stat-card-link:hover .stat-card,
+.portal-layout a.stat-card-link:focus-visible .stat-card {
+  border-color: #93c5fd !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12) !important;
+  transform: translateY(-1px);
+}
+
+.portal-layout a.stat-card-link:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 10px;
 }
 
 .portal-layout .stat-card::before {
@@ -346,12 +368,61 @@
   height: 3px;
 }
 
-.portal-layout .stat-card .text-muted {
+.portal-layout .stat-card .text-muted,
+.portal-layout .stat-card .stat-label {
   color: var(--portal-text-muted) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
-.portal-layout .stat-card .h4 {
-  color: var(--portal-heading);
+.portal-layout .stat-card .h4,
+.portal-layout .stat-card .stat-value {
+  color: var(--portal-heading) !important;
+  -webkit-text-fill-color: var(--portal-heading) !important;
+  background: none !important;
+  font-weight: 700;
+  font-size: 1.55rem;
+  line-height: 1.2;
+  margin-top: 0.35rem;
+}
+
+.portal-layout .stat-card .stat-value.text-warning,
+.portal-layout .stat-card .h4.text-warning {
+  color: #b45309 !important;
+  -webkit-text-fill-color: #b45309 !important;
+}
+
+.portal-layout .stat-card .stat-value.text-info,
+.portal-layout .stat-card .h4.text-info {
+  color: #0369a1 !important;
+  -webkit-text-fill-color: #0369a1 !important;
+}
+
+.portal-layout .stat-card .stat-value.text-danger,
+.portal-layout .stat-card .h4.text-danger {
+  color: #b91c1c !important;
+  -webkit-text-fill-color: #b91c1c !important;
+}
+
+.portal-layout .stat-card .stat-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.7rem;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+@media (max-width: 575px) {
+  .portal-layout .stat-card .card-body {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .portal-layout .stat-card .stat-value,
+  .portal-layout .stat-card .h4 {
+    font-size: 1.35rem;
+  }
 }
 
 .portal-layout .mini-stat {
@@ -779,6 +850,23 @@ body.portal-layout.sidebar-open .app-sidebar {
   color: var(--portal-heading);
 }
 
+.portal-layout .data-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.portal-layout .data-item-card {
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 0;
+}
+
+.portal-layout .form-control,
+.portal-layout .form-select {
+  max-width: 100%;
+}
+
 @media (max-width: 991px) {
   .portal-layout .app-page-bar {
     flex-direction: column;
@@ -791,12 +879,45 @@ body.portal-layout.sidebar-open .app-sidebar {
     align-items: stretch;
   }
 
-  .portal-layout .panel-toolbar .btn,
-  .portal-layout .app-page-actions .btn {
+  .portal-layout .panel-toolbar > .btn,
+  .portal-layout .panel-toolbar > a.btn,
+  .portal-layout .app-page-actions > .btn,
+  .portal-layout .app-page-actions > a.btn {
     width: 100%;
+  }
+
+  .portal-layout .app-page-actions .d-flex {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+  }
+
+  .portal-layout .app-page-actions .d-flex > .btn,
+  .portal-layout .app-page-actions .d-flex > a.btn {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: 8rem;
   }
 
   .portal-layout .table-responsive {
     margin: 0 -0.25rem;
+  }
+
+  .portal-layout .mini-stat {
+    min-height: 4.25rem;
+  }
+
+  .portal-layout .content-card {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 575px) {
+  .portal-layout .app-page-title {
+    font-size: 1.15rem;
+  }
+
+  .portal-layout .app-page-actions .d-flex > .btn,
+  .portal-layout .app-page-actions .d-flex > a.btn {
+    flex: 1 1 100%;
   }
 }

@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Regularization{% endblock %}
-{% block content %}
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <h1 class="h5 mb-0">Regularization Requests (CEO view)</h1>
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">Dashboard</a>
-  </div>
+{% block page_heading %}Regularization Requests{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">CEO view · live employee requests</p>{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">Dashboard</a>
+{% endblock %}
 
-  <form class="mb-3" method="get">
-    <div class="row g-2 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label mb-1">Status</label>
+{% block content %}
+  <div class="content-card mb-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-8 col-md-4">
+        <label class="form-label small mb-1">Status</label>
         <select class="form-select" name="status">
           <option value="">All</option>
           <option value="pending" {% if status == "pending" %}selected{% endif %}>Pending</option>
@@ -17,38 +18,60 @@
           <option value="rejected" {% if status == "rejected" %}selected{% endif %}>Rejected</option>
         </select>
       </div>
-      <div class="col-md-2">
+      <div class="col-4 col-md-2">
         <button class="btn btn-primary w-100" type="submit">Filter</button>
       </div>
-    </div>
-  </form>
+    </form>
+  </div>
 
-  <div class="table-responsive">
-    <table class="table table-sm table-striped align-middle">
-      <thead>
-        <tr>
-          <th>Employee</th>
-          <th>Date</th>
-          <th>Reason</th>
-          <th>Status</th>
-          <th>HR reviewer</th>
-          <th>HR note</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in requests %}
+  <div class="content-card">
+    <div class="table-responsive d-none d-md-block">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
           <tr>
-            <td>{{ r.employee.employee_id }} — {{ r.employee.username }}</td>
-            <td>{{ r.date }}</td>
-            <td class="text-muted">{{ r.description|truncatechars:60 }}</td>
-            <td>{{ r.status }}</td>
-            <td>{{ r.reviewed_by.employee_id|default:"-" }}</td>
-            <td class="text-muted">{{ r.hr_note|default:"-" }}</td>
+            <th>Employee</th>
+            <th>Date</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>HR reviewer</th>
+            <th>HR note</th>
           </tr>
-        {% empty %}
-          <tr><td colspan="6" class="text-muted">No requests found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for r in requests %}
+            <tr>
+              <td>{{ r.employee.employee_id }} — {{ r.employee.username }}</td>
+              <td>{{ r.date }}</td>
+              <td class="text-muted">{{ r.description|truncatechars:60 }}</td>
+              <td>
+                {% if r.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                {% elif r.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+              </td>
+              <td>{{ r.reviewed_by.employee_id|default:"—" }}</td>
+              <td class="text-muted">{{ r.hr_note|default:"—" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="text-muted text-center py-4">No requests found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="data-card-list d-md-none">
+      {% for r in requests %}
+        <article class="data-item-card">
+          <div class="d-flex justify-content-between gap-2 mb-1">
+            <div class="data-item-title">{{ r.employee.username }}</div>
+            {% if r.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+            {% elif r.status == 'approved' %}<span class="badge bg-success">Approved</span>
+            {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+          </div>
+          <div class="data-item-meta mb-1">{{ r.employee.employee_id }} · {{ r.date }}</div>
+          <div class="small">{{ r.description|truncatechars:100 }}</div>
+        </article>
+      {% empty %}
+        <p class="text-muted mb-0">No requests found.</p>
+      {% endfor %}
+    </div>
   </div>
 {% endblock %}

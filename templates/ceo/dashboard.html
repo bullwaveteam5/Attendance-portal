@@ -8,17 +8,105 @@
 
   <div class="app-panel active" id="panel-overview">
     <div class="row g-3 mb-4">
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Employees</div><div class="h4 mb-0">{{ total_employees }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">HR staff</div><div class="h4 mb-0">{{ hr_count }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Present today</div><div class="h4 mb-0">{{ present_today }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Absent today</div><div class="h4 mb-0">{{ absent_today }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending regularization</div><div class="h4 mb-0">{{ pending_regularizations }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending leave</div><div class="h4 mb-0 text-warning">{{ pending_leave_count }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending holidays</div><div class="h4 mb-0">{{ pending_holiday_count }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">On leave today</div><div class="h4 mb-0 text-info">{{ on_leave_today }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Praise letters (month)</div><div class="h4 mb-0">{{ praise_letters_month }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Your letters sent</div><div class="h4 mb-0">{{ praise_letters_sent }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">HR overrides</div><div class="h4 mb-0">{{ ceo_overrides }}</div></div></div></div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'employee_list' %}" title="Open employee records">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Employees</div>
+            <div class="stat-value">{{ total_employees }}</div>
+            <span class="stat-hint">View all →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'ceo_hr_overview' %}" title="Open HR activity">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">HR staff</div>
+            <div class="stat-value">{{ hr_count }}</div>
+            <span class="stat-hint">HR monitor →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'admin_attendance_list' %}?date={{ today|date:'Y-m-d' }}&status=Present" title="Present today">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Present today</div>
+            <div class="stat-value">{{ present_today }}</div>
+            <span class="stat-hint">Attendance →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'admin_attendance_list' %}?date={{ today|date:'Y-m-d' }}" title="Today's attendance board">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Absent today</div>
+            <div class="stat-value {% if absent_today %}text-danger{% endif %}">{{ absent_today }}</div>
+            <span class="stat-hint">Today board →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'regularization_request_list' %}?status=pending" title="Pending regularization">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Pending regularization</div>
+            <div class="stat-value">{{ pending_regularizations }}</div>
+            <span class="stat-hint">Review →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'hr_leave_request_list' %}?status=pending" title="Pending leave">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Pending leave</div>
+            <div class="stat-value text-warning">{{ pending_leave_count }}</div>
+            <span class="stat-hint">Leave records →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'holiday_list' %}?status=pending" title="Pending holidays">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Pending holidays</div>
+            <div class="stat-value">{{ pending_holiday_count }}</div>
+            <span class="stat-hint">Holidays →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'admin_attendance_list' %}?date={{ today|date:'Y-m-d' }}&status=On+Leave" title="On leave today">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">On leave today</div>
+            <div class="stat-value text-info">{{ on_leave_today }}</div>
+            <span class="stat-hint">On leave →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'praise_letter_list' %}" title="Praise letters this month">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Praise letters (month)</div>
+            <div class="stat-value">{{ praise_letters_month }}</div>
+            <span class="stat-hint">All letters →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'praise_letter_list' %}" title="Your praise letters">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Your letters sent</div>
+            <div class="stat-value">{{ praise_letters_sent }}</div>
+            <span class="stat-hint">View letters →</span>
+          </div></div>
+        </a>
+      </div>
+      <div class="col-6 col-md-4 col-xl-3">
+        <a class="stat-card-link" href="{% url 'ceo_dashboard' %}#overrides" title="HR overrides panel">
+          <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">HR overrides</div>
+            <div class="stat-value">{{ ceo_overrides }}</div>
+            <span class="stat-hint">Overrides →</span>
+          </div></div>
+        </a>
+      </div>
     </div>
     {% include "includes/today_attendance_board.html" with today_attendance_board=today_attendance_board today=today title="Live Employee Check-in / Check-out" %}
 
@@ -90,27 +178,11 @@
         <h2 class="content-card-title mb-0">Pending Leave Approvals</h2>
         <a class="btn btn-warning btn-sm" href="{% url 'hr_leave_request_list' %}?status=pending">Leave Records</a>
       </div>
-      <div class="table-responsive">
-        <table class="table table-portal table-sm align-middle mb-0">
-          <thead><tr><th>Employee</th><th>Dates</th><th>Type</th><th></th></tr></thead>
-          <tbody>
-            {% for lr in pending_leave_requests %}
-              <tr>
-                <td>{{ lr.employee.employee_id }} — {{ lr.employee.username }}</td>
-                <td class="small">{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</td>
-                <td>{{ lr.get_leave_type_display }}</td>
-                <td class="text-end"><a class="btn btn-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">Approve / Reject</a></td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="4" class="text-muted">No pending leave requests.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+      {% include "includes/leave_request_rows.html" with leave_requests=pending_leave_requests show_reason=False empty_text="No pending leave requests." %}
     </div>
     <div class="content-card">
       <h2 class="content-card-title">Pending Regularization</h2>
-      <div class="table-responsive">
+      <div class="table-responsive d-none d-md-block">
         <table class="table table-portal table-sm align-middle mb-0">
           <thead><tr><th>Employee</th><th>Date</th><th></th></tr></thead>
           <tbody>
@@ -126,13 +198,24 @@
           </tbody>
         </table>
       </div>
+      <div class="data-card-list d-md-none">
+        {% for r in pending_regs %}
+          <article class="data-item-card">
+            <div class="data-item-title">{{ r.employee.employee_id }}</div>
+            <div class="data-item-meta mb-2">{{ r.date }}</div>
+            <a class="btn btn-outline-primary btn-sm w-100" href="{% url 'regularization_review' r.pk %}">Review</a>
+          </article>
+        {% empty %}
+          <p class="text-muted mb-0">No pending requests.</p>
+        {% endfor %}
+      </div>
     </div>
   </div>
 
   <div class="app-panel" id="panel-overrides">
     <div class="content-card">
       <h2 class="content-card-title">Your HR Decision Overrides</h2>
-      <div class="table-responsive">
+      <div class="table-responsive d-none d-md-block">
         <table class="table table-portal table-sm align-middle mb-0">
           <thead><tr><th>Employee</th><th>Date</th><th>Status</th><th>HR was</th><th>CEO note</th></tr></thead>
           <tbody>
@@ -149,6 +232,17 @@
             {% endfor %}
           </tbody>
         </table>
+      </div>
+      <div class="data-card-list d-md-none">
+        {% for r in recent_overrides %}
+          <article class="data-item-card">
+            <div class="data-item-title">{{ r.employee.employee_id }} · {{ r.date }}</div>
+            <div class="data-item-meta">{{ r.status }} · HR {{ r.reviewed_by.employee_id|default:"—" }}</div>
+            {% if r.ceo_note %}<div class="small mt-1">{{ r.ceo_note }}</div>{% endif %}
+          </article>
+        {% empty %}
+          <p class="text-muted mb-0">No overrides yet.</p>
+        {% endfor %}
       </div>
     </div>
   </div>

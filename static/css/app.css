@@ -153,6 +153,11 @@ h1, h2, h3, h4, h5, h6, .display-6, .navbar-brand {
 .stat-card .h4,
 .stat-card .h5 {
   font-weight: 700;
+}
+
+/* Landing / dark surfaces only: keep rainbow number treatment */
+body:not(.portal-layout) .stat-card .h4,
+body:not(.portal-layout) .stat-card .h5 {
   background: linear-gradient(135deg, #fff 10%, var(--c-blue) 40%, var(--c-purple) 70%, var(--c-green) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

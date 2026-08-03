@@ -90,7 +90,7 @@
 
   <div class="content-card">
     <h2 class="content-card-title">Other leave applications for this employee</h2>
-    <div class="table-responsive">
+    <div class="table-responsive d-none d-md-block">
       <table class="table table-portal table-sm align-middle mb-0">
         <thead><tr><th>Dates</th><th>Type</th><th>Days</th><th>Status</th><th></th></tr></thead>
         <tbody>
@@ -111,6 +111,22 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+    <div class="data-card-list d-md-none">
+      {% for lr in prior_requests %}
+        <article class="data-item-card">
+          <div class="d-flex justify-content-between gap-2 mb-1">
+            <div class="data-item-title">{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</div>
+            {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+            {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+            {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+          </div>
+          <div class="data-item-meta mb-2">{{ lr.get_leave_type_display }} · {{ lr.duration_days }} day{{ lr.duration_days|pluralize }}</div>
+          <a class="btn btn-outline-secondary btn-sm w-100" href="{% url 'hr_leave_request_review' lr.pk %}">View</a>
+        </article>
+      {% empty %}
+        <p class="text-muted mb-0">No other leave applications on record.</p>
+      {% endfor %}
     </div>
   </div>
 {% endblock %}

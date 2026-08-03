@@ -1,74 +1,83 @@
 {% extends "base.html" %}
 {% block title %}HR Activity{% endblock %}
+{% block page_heading %}HR Activity Monitor{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Live audit of HR work — override when needed</p>{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">CEO Home</a>
+{% endblock %}
+
 {% block content %}
-  <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
-    <div>
-      <h1 class="h5 mb-0">HR Activity Monitor</h1>
-      <div class="text-muted small">Audit HR work and override decisions when needed</div>
-    </div>
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">CEO Home</a>
-  </div>
-
-  <div class="card mb-4">
-    <div class="card-body">
-      <h2 class="h6 mb-3">HR Team</h2>
-      <div class="table-responsive">
-        <table class="table table-sm table-striped align-middle mb-0">
-          <thead>
+  <div class="content-card mb-4">
+    <h2 class="content-card-title">HR Team</h2>
+    <div class="table-responsive d-none d-md-block">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>HR ID</th>
+            <th>Name</th>
+            <th>Regularizations handled (month)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in hr_team %}
             <tr>
-              <th>HR ID</th>
-              <th>Name</th>
-              <th>Regularizations handled (month)</th>
+              <td>{{ row.user.employee_id }}</td>
+              <td>{{ row.user.username }}</td>
+              <td>{{ row.regularizations_this_month }}</td>
             </tr>
-          </thead>
-          <tbody>
-            {% for row in hr_team %}
-              <tr>
-                <td>{{ row.user.employee_id }}</td>
-                <td>{{ row.user.username }}</td>
-                <td>{{ row.regularizations_this_month }}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="3" class="text-muted">No HR accounts.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+          {% empty %}
+            <tr><td colspan="3" class="text-muted">No HR accounts.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="data-card-list d-md-none">
+      {% for row in hr_team %}
+        <article class="data-item-card">
+          <div class="data-item-title">{{ row.user.username }}</div>
+          <div class="data-item-meta">{{ row.user.employee_id }} · {{ row.regularizations_this_month }} regs this month</div>
+        </article>
+      {% empty %}
+        <p class="text-muted mb-0">No HR accounts.</p>
+      {% endfor %}
     </div>
   </div>
 
-  <div class="row g-4">
+  <div class="row g-3">
     <div class="col-12 col-lg-6">
-      <div class="card h-100">
-        <div class="card-body">
-          <h2 class="h6 mb-3">Pending (awaiting HR)</h2>
-          {% for r in pending_regularizations %}
-            <div class="d-flex justify-content-between align-items-start border-bottom border-secondary py-2 small">
-              <div>{{ r.employee.employee_id }} — {{ r.date }}<br /><span class="text-muted">{{ r.description|truncatechars:50 }}</span></div>
+      <div class="content-card h-100">
+        <h2 class="content-card-title">Pending (awaiting HR)</h2>
+        {% for r in pending_regularizations %}
+          <article class="data-item-card">
+            <div class="d-flex justify-content-between gap-2">
+              <div>
+                <div class="data-item-title">{{ r.employee.employee_id }}</div>
+                <div class="data-item-meta">{{ r.date }} · {{ r.description|truncatechars:60 }}</div>
+              </div>
               <a class="btn btn-outline-primary btn-sm" href="{% url 'regularization_review' r.pk %}">Review</a>
             </div>
-          {% empty %}
-            <p class="text-muted small mb-0">None pending.</p>
-          {% endfor %}
-        </div>
+          </article>
+        {% empty %}
+          <p class="text-muted small mb-0">None pending.</p>
+        {% endfor %}
       </div>
     </div>
     <div class="col-12 col-lg-6">
-      <div class="card h-100">
-        <div class="card-body">
-          <h2 class="h6 mb-3">HR Decisions (you can override)</h2>
-          {% for r in hr_decisions %}
-            <div class="d-flex justify-content-between align-items-start border-bottom border-secondary py-2 small">
+      <div class="content-card h-100">
+        <h2 class="content-card-title">HR Decisions (you can override)</h2>
+        {% for r in hr_decisions %}
+          <article class="data-item-card">
+            <div class="d-flex justify-content-between gap-2">
               <div>
-                {{ r.employee.employee_id }} — {{ r.date }} — <strong>{{ r.status }}</strong>
-                {% if r.ceo_reviewed_by %}<br /><span class="text-warning">CEO overridden</span>{% endif %}
+                <div class="data-item-title">{{ r.employee.employee_id }} · {{ r.date }}</div>
+                <div class="data-item-meta"><strong>{{ r.status }}</strong>{% if r.ceo_reviewed_by %} · CEO overridden{% endif %}</div>
               </div>
               <a class="btn btn-outline-warning btn-sm" href="{% url 'ceo_regularization_override' r.pk %}">Override</a>
             </div>
-          {% empty %}
-            <p class="text-muted small mb-0">No HR decisions yet.</p>
-          {% endfor %}
-        </div>
+          </article>
+        {% empty %}
+          <p class="text-muted small mb-0">No HR decisions yet.</p>
+        {% endfor %}
       </div>
     </div>
   </div>

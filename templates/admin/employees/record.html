@@ -43,15 +43,15 @@
     </div>
     <div class="col-12 col-lg-8">
       <div class="content-card h-100">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
           <h2 class="content-card-title mb-0">Leave applications (live)</h2>
           <a class="btn btn-warning btn-sm" href="{% url 'hr_leave_request_list' %}?employee={{ employee.employee_id }}">Manage leave</a>
         </div>
         <p class="small text-muted mb-2">
           Approved {{ leave_counts.approved }} · Rejected {{ leave_counts.rejected }} · Pending {{ leave_counts.pending }}
-          · Absences this month {{ leave_summary.absences_this_month }} · On leave days {{ leave_summary.on_leave_days }}
+          · Absences {{ leave_summary.absences_this_month }} · On leave {{ leave_summary.on_leave_days }}
         </p>
-        <div class="table-responsive">
+        <div class="table-responsive d-none d-md-block">
           <table class="table table-portal table-sm align-middle mb-0">
             <thead><tr><th>Dates</th><th>Days</th><th>Type</th><th>Status</th><th>Reviewed</th><th></th></tr></thead>
             <tbody>
@@ -67,16 +67,30 @@
                   </td>
                   <td class="text-muted small">{% if lr.reviewed_by %}{{ lr.reviewed_by.employee_id }}{% else %}—{% endif %}</td>
                   <td class="text-end">
-                    <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">
-                      {% if lr.status == 'pending' %}Review{% else %}View{% endif %}
-                    </a>
+                    <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">{% if lr.status == 'pending' %}Review{% else %}View{% endif %}</a>
                   </td>
                 </tr>
               {% empty %}
-                <tr><td colspan="6" class="text-muted text-center py-3">No leave applications on record for this employee.</td></tr>
+                <tr><td colspan="6" class="text-muted text-center py-3">No leave applications on record.</td></tr>
               {% endfor %}
             </tbody>
           </table>
+        </div>
+        <div class="data-card-list d-md-none">
+          {% for lr in leave_requests %}
+            <article class="data-item-card">
+              <div class="d-flex justify-content-between gap-2 mb-1">
+                <div class="data-item-title">{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</div>
+                {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+              </div>
+              <div class="data-item-meta mb-2">{{ lr.get_leave_type_display }} · {{ lr.duration_days }} day{{ lr.duration_days|pluralize }}</div>
+              <a class="btn btn-outline-primary btn-sm w-100" href="{% url 'hr_leave_request_review' lr.pk %}">{% if lr.status == 'pending' %}Review{% else %}View{% endif %}</a>
+            </article>
+          {% empty %}
+            <p class="text-muted mb-0">No leave applications on record.</p>
+          {% endfor %}
         </div>
       </div>
     </div>
@@ -85,18 +99,26 @@
   <div class="content-card mb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <h2 class="content-card-title mb-0">Attendance — {{ month_label }}</h2>
-      <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
-        <select class="form-select form-select-sm" name="month" style="width:auto">
-          {% for m in month_choices %}
-            <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
-          {% endfor %}
-        </select>
-        <input class="form-control form-control-sm" type="number" name="year" value="{{ year }}" min="2020" max="2100" style="width:6rem" />
-        <button class="btn btn-outline-secondary btn-sm" type="submit">Load</button>
-        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin_attendance_list' %}?employee_id={{ employee.employee_id }}&month={{ month }}&year={{ year }}">Open in attendance</a>
+      <form method="get" class="row g-2 align-items-end w-100 w-md-auto">
+        <div class="col-4 col-md-auto">
+          <select class="form-select form-select-sm" name="month">
+            {% for m in month_choices %}
+              <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-4 col-md-auto">
+          <input class="form-control form-control-sm" type="number" name="year" value="{{ year }}" min="2020" max="2100" style="min-width:5.5rem" />
+        </div>
+        <div class="col-4 col-md-auto">
+          <button class="btn btn-outline-secondary btn-sm w-100" type="submit">Load</button>
+        </div>
+        <div class="col-12 col-md-auto">
+          <a class="btn btn-outline-primary btn-sm w-100" href="{% url 'admin_attendance_list' %}?employee_id={{ employee.employee_id }}&month={{ month }}&year={{ year }}">Open in attendance</a>
+        </div>
       </form>
     </div>
-    <div class="table-responsive">
+    <div class="table-responsive d-none d-md-block">
       <table class="table table-portal table-sm align-middle mb-0">
         <thead><tr><th>Date</th><th>In</th><th>Out</th><th>Hours</th><th>OT</th><th>Status</th><th>Late</th></tr></thead>
         <tbody>
@@ -116,13 +138,26 @@
         </tbody>
       </table>
     </div>
+    <div class="data-card-list d-md-none">
+      {% for r in attendance_records %}
+        <article class="data-item-card">
+          <div class="d-flex justify-content-between gap-2 mb-1">
+            <div class="data-item-title">{{ r.date|date:"D, M j" }}</div>
+            {% include "includes/attendance_status_badge.html" with r=r %}
+          </div>
+          <div class="data-item-meta">In {% if r.check_in %}{{ r.check_in|time:"H:i" }}{% else %}—{% endif %} · Out {% if r.check_out %}{{ r.check_out|time:"H:i" }}{% else %}—{% endif %} · {{ r.working_hours }} hrs</div>
+        </article>
+      {% empty %}
+        <p class="text-muted mb-0">No attendance rows for {{ month_label }}.</p>
+      {% endfor %}
+    </div>
   </div>
 
   <div class="row g-3">
     <div class="col-12 col-lg-6">
       <div class="content-card h-100">
         <h2 class="content-card-title">Monthly leave balances</h2>
-        <div class="table-responsive">
+        <div class="table-responsive d-none d-sm-block">
           <table class="table table-portal table-sm mb-0">
             <thead><tr><th>Month</th><th>Allocation</th><th>Carried</th><th>Used</th><th>Left</th></tr></thead>
             <tbody>
@@ -140,12 +175,22 @@
             </tbody>
           </table>
         </div>
+        <div class="data-card-list d-sm-none">
+          {% for b in balances %}
+            <article class="data-item-card">
+              <div class="data-item-title">{{ b.year }}-{{ b.month|stringformat:"02d" }}</div>
+              <div class="data-item-meta">Used {{ b.used_leaves }} · Left <strong class="text-success">{{ b.remaining }}</strong></div>
+            </article>
+          {% empty %}
+            <p class="text-muted mb-0">No balance rows yet.</p>
+          {% endfor %}
+        </div>
       </div>
     </div>
     <div class="col-12 col-lg-6">
       <div class="content-card mb-3">
         <h2 class="content-card-title">Regularization</h2>
-        <div class="table-responsive">
+        <div class="table-responsive d-none d-sm-block">
           <table class="table table-portal table-sm mb-0">
             <thead><tr><th>Date</th><th>Status</th><th></th></tr></thead>
             <tbody>
@@ -169,13 +214,30 @@
             </tbody>
           </table>
         </div>
+        <div class="data-card-list d-sm-none">
+          {% for r in regularizations %}
+            <article class="data-item-card">
+              <div class="d-flex justify-content-between gap-2">
+                <div class="data-item-title">{{ r.date|date:"M j, Y" }}</div>
+                {% if r.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                {% elif r.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+              </div>
+              {% if r.status == 'pending' %}
+                <a class="btn btn-outline-primary btn-sm w-100 mt-2" href="{% url 'regularization_review' r.pk %}">Review</a>
+              {% endif %}
+            </article>
+          {% empty %}
+            <p class="text-muted mb-0">No regularization requests.</p>
+          {% endfor %}
+        </div>
       </div>
       <div class="content-card">
         <h2 class="content-card-title">Pay slips &amp; praise</h2>
         <p class="small text-muted mb-2">Pay slips: {{ payslips|length }} · Praise letters: {{ praise_letters|length }}</p>
-        <ul class="small mb-0">
+        <ul class="list-unstyled small mb-0">
           {% for s in payslips %}
-            <li>{{ s.period_label }} — <a href="{% url 'hr_payslip_download' s.pk %}">Download</a></li>
+            <li class="mb-1">{{ s.period_label }} — <a href="{% url 'hr_payslip_download' s.pk %}">Download</a></li>
           {% empty %}
             <li class="text-muted">No pay slips uploaded.</li>
           {% endfor %}

@@ -1,17 +1,6 @@
-{% load tz %}
 <td>
-  {% if r.status == "Half Day" or r.is_half_day_checkin %}
-    <span class="badge bg-warning text-dark">Half Day</span>
-    {% if r.is_half_day_checkin %}
-      <div class="text-muted small">After 12:30 PM</div>
-    {% endif %}
-  {% elif r.status == "Full Day" %}
-    <span class="badge bg-success">Full Day</span>
-  {% elif r.status == "Present" %}
-    <span class="badge bg-primary">Present</span>
-  {% elif r.status == "Absent" %}
-    <span class="badge bg-danger">Absent</span>
-  {% else %}
-    {{ r.status }}
+  {% include "includes/attendance_status_badge.html" with r=r %}
+  {% if r.status == "Half Day" and r.is_half_day_checkin %}
+    <div class="text-muted small">After 12:30 PM</div>
   {% endif %}
 </td>

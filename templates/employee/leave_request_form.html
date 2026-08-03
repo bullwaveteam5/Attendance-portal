@@ -14,24 +14,27 @@
         <div class="alert alert-danger">{{ form.non_field_errors }}</div>
       {% endif %}
       <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label">Leave Type</label>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="{{ form.leave_type.id_for_label }}">Leave Type</label>
           {{ form.leave_type }}
         </div>
-        <div class="col-md-3">
-          <label class="form-label">Start Date</label>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="{{ form.start_date.id_for_label }}">Start Date</label>
           {{ form.start_date }}
+          {% for error in form.start_date.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
         </div>
-        <div class="col-md-3">
-          <label class="form-label">End Date</label>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="{{ form.end_date.id_for_label }}">End Date</label>
           {{ form.end_date }}
+          {% for error in form.end_date.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
         </div>
         <div class="col-12">
-          <label class="form-label">Reason</label>
+          <label class="form-label" for="{{ form.reason.id_for_label }}">Reason</label>
           {{ form.reason }}
+          {% for error in form.reason.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
         </div>
       </div>
-      <div class="mt-4 d-flex gap-2">
+      <div class="mt-4 d-flex flex-column flex-sm-row gap-2">
         <button type="submit" class="btn btn-success">Submit to HR</button>
         <a class="btn btn-outline-secondary" href="{% url 'employee_leave_requests' %}">Cancel</a>
       </div>

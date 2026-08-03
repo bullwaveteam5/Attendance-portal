@@ -1,6 +1,11 @@
 .env
 db.sqlite3
+*.sqlite3
 __pycache__/
 *.pyc
 media/
 *.log
+.venv/
+venv/
+*.egg-info/
+.DS_Store

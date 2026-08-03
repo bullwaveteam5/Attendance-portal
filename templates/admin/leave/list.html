@@ -1,43 +1,141 @@
 {% extends "base.html" %}
-{% block title %}Leave Requests{% endblock %}
-{% block page_heading %}Leave Requests{% endblock %}
+{% block title %}Leave Records{% endblock %}
+{% block page_heading %}Employee Leave Records{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Approve or reject employee leave here. Pending requests appear for both HR and CEO.</p>{% endblock %}
 {% block page_actions %}
-  <div class="btn-group btn-group-sm">
-    <a class="btn btn-outline-secondary {% if status_filter == 'pending' %}active{% endif %}" href="?status=pending">Pending</a>
-    <a class="btn btn-outline-secondary {% if status_filter == 'approved' %}active{% endif %}" href="?status=approved">Approved</a>
-    <a class="btn btn-outline-secondary {% if status_filter == 'rejected' %}active{% endif %}" href="?status=rejected">Rejected</a>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-success btn-sm" href="{% url 'hr_leave_balances' %}"><i class="bi bi-people me-1"></i>Leave Balances</a>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_leave_export_csv' %}?status={{ status_filter }}&employee={{ employee }}&department={{ department }}&leave_type={{ leave_type }}&date_from={{ date_from }}&date_to={{ date_to }}"><i class="bi bi-download me-1"></i>Export CSV</a>
   </div>
 {% endblock %}
 
 {% block content %}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="mini-stat"><span>Total</span><strong>{{ counts.total }}</strong></div></div>
+    <div class="col-6 col-md-3"><div class="mini-stat"><span>Pending</span><strong class="text-warning">{{ counts.pending }}</strong></div></div>
+    <div class="col-6 col-md-3"><div class="mini-stat"><span>Approved</span><strong class="text-success">{{ counts.approved }}</strong></div></div>
+    <div class="col-6 col-md-3"><div class="mini-stat"><span>Rejected</span><strong class="text-danger">{{ counts.rejected }}</strong></div></div>
+  </div>
+
+  <div class="content-card mb-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Status</label>
+        <select class="form-select form-select-sm" name="status">
+          <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+          <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+          <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+          <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Employee</label>
+        <input class="form-control form-control-sm" name="employee" value="{{ employee }}" placeholder="ID or name" />
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Department</label>
+        <input class="form-control form-control-sm" name="department" value="{{ department }}" list="dept-list" placeholder="Department" />
+        <datalist id="dept-list">{% for d in departments %}<option value="{{ d }}">{% endfor %}</datalist>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Type</label>
+        <select class="form-select form-select-sm" name="leave_type">
+          <option value="">All types</option>
+          {% for value, label in leave_types %}
+            <option value="{{ value }}" {% if leave_type == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">From</label>
+        <input class="form-control form-control-sm" type="date" name="date_from" value="{{ date_from }}" />
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">To</label>
+        <input class="form-control form-control-sm" type="date" name="date_to" value="{{ date_to }}" />
+      </div>
+      <div class="col-12 d-flex flex-wrap gap-2">
+        <button class="btn btn-primary btn-sm" type="submit">Apply filters</button>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'hr_leave_request_list' %}">Reset</a>
+        <span class="text-muted small align-self-center ms-auto">Showing {{ leave_requests|length }} of {{ result_count }} record{{ result_count|pluralize }}</span>
+      </div>
+    </form>
+  </div>
+
   <div class="content-card">
-    <div class="table-responsive">
+    <div class="table-responsive d-none d-md-block">
       <table class="table table-portal table-sm align-middle mb-0">
         <thead>
-          <tr><th>Employee</th><th>From</th><th>To</th><th>Type</th><th>Reason</th><th>Status</th><th></th></tr>
+          <tr>
+            <th>Employee</th>
+            <th>Dept</th>
+            <th>Dates</th>
+            <th>Days</th>
+            <th>Type</th>
+            <th>Submitted</th>
+            <th>Status</th>
+            <th>Reviewed</th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
           {% for lr in leave_requests %}
             <tr>
-              <td>{{ lr.employee.employee_id }} — {{ lr.employee.username }}</td>
-              <td>{{ lr.start_date }}</td>
-              <td>{{ lr.end_date }}</td>
+              <td>
+                <a href="{% url 'hr_employee_leave_history' lr.employee.pk %}">{{ lr.employee.employee_id }}</a>
+                <div class="small text-muted">{{ lr.employee.username }}</div>
+              </td>
+              <td class="text-muted small">{{ lr.employee.department|default:"—" }}</td>
+              <td class="small">{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</td>
+              <td>{{ lr.duration_days }}</td>
               <td>{{ lr.get_leave_type_display }}</td>
-              <td class="text-muted">{{ lr.reason|truncatechars:40 }}</td>
-              <td>{{ lr.get_status_display }}</td>
-              <td class="text-end">
-                {% if lr.status == 'pending' %}
-                  <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">Review</a>
-                {% else %}
-                  <span class="text-muted small">{{ lr.hr_note|default:"—" }}</span>
-                {% endif %}
+              <td class="text-muted small">{{ lr.created_at|date:"M j, Y" }}</td>
+              <td>
+                {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+              </td>
+              <td class="text-muted small">
+                {% if lr.reviewed_by %}{{ lr.reviewed_by.employee_id }}{% else %}—{% endif %}
+                {% if lr.reviewed_at %}<div>{{ lr.reviewed_at|date:"M j" }}</div>{% endif %}
+              </td>
+              <td class="text-end text-nowrap">
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">
+                  {% if lr.status == 'pending' %}Review{% else %}View{% endif %}
+                </a>
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="7" class="text-muted text-center py-4">No leave requests.</td></tr>
+            <tr><td colspan="9" class="text-muted text-center py-4">No leave applications match these filters.</td></tr>
           {% endfor %}
         </tbody>
       </table>
+    </div>
+
+    <div class="data-card-list d-md-none">
+      {% for lr in leave_requests %}
+        <article class="data-item-card">
+          <div class="d-flex justify-content-between gap-2 mb-2">
+            <div>
+              <div class="data-item-title">{{ lr.employee.username }}</div>
+              <div class="data-item-meta">{{ lr.employee.employee_id }} · {{ lr.get_leave_type_display }} · {{ lr.duration_days }} day{{ lr.duration_days|pluralize }}</div>
+            </div>
+            {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+            {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+            {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+          </div>
+          <div class="small mb-2">{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</div>
+          <div class="small text-muted mb-3">{{ lr.reason|truncatechars:120 }}</div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">
+              {% if lr.status == 'pending' %}Review Request{% else %}View Record{% endif %}
+            </a>
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'hr_employee_leave_history' lr.employee.pk %}">Employee leave history</a>
+          </div>
+        </article>
+      {% empty %}
+        <p class="text-muted text-center mb-0 py-3">No leave applications match these filters.</p>
+      {% endfor %}
     </div>
   </div>
 {% endblock %}

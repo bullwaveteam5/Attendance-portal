@@ -1,54 +1,110 @@
 {% extends "base.html" %}
 {% block title %}Employees{% endblock %}
-{% block page_heading %}Employees{% endblock %}
+{% block page_heading %}Employee Records{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">{{ employees|length }} employee{{ employees|length|pluralize }} · today {{ today|date:"M j, Y" }} check-in/out + leave for {{ leave_month }}</p>{% endblock %}
 {% block page_actions %}
-  <a class="btn btn-primary btn-sm" href="{% url 'employee_create' %}">Add Employee</a>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'admin_attendance_list' %}">Today's attendance</a>
+    <a class="btn btn-outline-success btn-sm" href="{% url 'hr_leave_balances' %}">Leave balances</a>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_leave_request_list' %}">Leave applications</a>
+    <a class="btn btn-primary btn-sm" href="{% url 'employee_create' %}">Add Employee</a>
+  </div>
 {% endblock %}
+
 {% block content %}
   <div class="content-card">
-    <form class="mb-3" method="get">
+    <form class="mb-3" method="get" action="{% url 'employee_list' %}">
       <div class="input-group">
         <input class="form-control" name="q" value="{{ q }}" placeholder="Search by ID, name, department" />
         <button class="btn btn-outline-secondary" type="submit">Search</button>
       </div>
     </form>
 
-    <div class="table-responsive">
-        <table class="table table-portal table-sm align-middle">
-      <thead>
-        <tr>
-          <th>Employee ID</th>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Department</th>
-          <th>Active</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for e in employees %}
+    <div class="table-responsive d-none d-lg-block">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
           <tr>
-            <td>{{ e.employee_id }}</td>
-            <td>{{ e.username }}</td>
-            <td>{{ e.email|default:"-" }}</td>
-            <td>{{ e.department|default:"-" }}</td>
-            <td>{{ e.is_active|yesno:"Yes,No" }}</td>
-            <td class="text-end">
-              <a class="btn btn-outline-primary btn-sm" href="{% url 'employee_update' e.pk %}">Edit</a>
-              <a class="btn btn-outline-light btn-sm" href="{% url 'hr_employee_portal' e.pk %}">Portal</a>
-              <a class="btn btn-outline-info btn-sm" href="{% url 'hr_employee_personal_info' e.pk %}">Personal</a>
-              {% if request.user.role == 'ceo' %}
-                <a class="btn btn-outline-success btn-sm" href="{% url 'praise_letter_create' %}?employee={{ e.pk }}">Praise</a>
-              {% endif %}
-              <a class="btn btn-outline-danger btn-sm" href="{% url 'employee_delete' e.pk %}">Delete</a>
-            </td>
+            <th>Employee ID</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Today In</th>
+            <th>Today Out</th>
+            <th>Today Status</th>
+            <th>Leave left</th>
+            <th>Pending leave</th>
+            <th>Active</th>
+            <th></th>
           </tr>
-        {% empty %}
-          <tr><td colspan="6" class="text-muted">No employees found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for e in employees %}
+            <tr>
+              <td><a href="{% url 'hr_employee_record' e.pk %}">{{ e.employee_id }}</a></td>
+              <td><a href="{% url 'hr_employee_record' e.pk %}" class="text-decoration-none">{{ e.username }}</a></td>
+              <td>{{ e.department|default:"—" }}</td>
+              <td>{% if e.today_check_in %}{{ e.today_check_in|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td>{% if e.today_check_out %}{{ e.today_check_out|time:"H:i" }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td>
+                {% if e.today_record %}
+                  {% include "includes/attendance_status_badge.html" with r=e.today_record %}
+                {% else %}
+                  <span class="badge bg-secondary">Not marked</span>
+                {% endif %}
+              </td>
+              <td class="text-success fw-semibold">{{ e.leave_remaining }}</td>
+              <td>
+                {% if e.pending_leaves %}
+                  <a href="{% url 'hr_leave_request_list' %}?status=pending&employee={{ e.employee_id }}" class="badge bg-warning text-dark text-decoration-none">{{ e.pending_leaves }}</a>
+                {% else %}
+                  <span class="text-muted">0</span>
+                {% endif %}
+              </td>
+              <td>{% if e.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
+              <td class="text-end text-nowrap">
+                <a class="btn btn-primary btn-sm" href="{% url 'hr_employee_record' e.pk %}">Record</a>
+                <a class="btn btn-outline-success btn-sm" href="{% url 'hr_employee_leave_history' e.pk %}">Leave</a>
+                <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_update' e.pk %}">Edit</a>
+                {% if request.user.role == 'ceo' %}
+                  <a class="btn btn-outline-success btn-sm" href="{% url 'praise_letter_create' %}?employee={{ e.pk }}">Praise</a>
+                {% endif %}
+                <a class="btn btn-outline-danger btn-sm" href="{% url 'employee_delete' e.pk %}">Delete</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="10" class="text-muted text-center py-4">No employees found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="data-card-list d-lg-none">
+      {% for e in employees %}
+        <article class="data-item-card">
+          <div class="d-flex justify-content-between gap-2 mb-2">
+            <div>
+              <div class="data-item-title">{{ e.username }}</div>
+              <div class="data-item-meta">{{ e.employee_id }} · {{ e.department|default:"No dept" }}</div>
+            </div>
+            {% if e.today_record %}
+              {% include "includes/attendance_status_badge.html" with r=e.today_record %}
+            {% else %}
+              <span class="badge bg-secondary">Not marked</span>
+            {% endif %}
+          </div>
+          <div class="small mb-2">
+            Today In: {% if e.today_check_in %}{{ e.today_check_in|time:"H:i" }}{% else %}—{% endif %}
+            · Out: {% if e.today_check_out %}{{ e.today_check_out|time:"H:i" }}{% else %}—{% endif %}
+            · Leave left: <strong class="text-success">{{ e.leave_remaining }}</strong>
+          </div>
+          <div class="d-grid gap-2">
+            <a class="btn btn-primary btn-sm" href="{% url 'hr_employee_record' e.pk %}">Open full record</a>
+            <a class="btn btn-outline-success btn-sm" href="{% url 'hr_employee_leave_history' e.pk %}">Leave history</a>
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_update' e.pk %}">Edit profile</a>
+          </div>
+        </article>
+      {% empty %}
+        <p class="text-muted mb-0 py-3 text-center">No employees found.</p>
+      {% endfor %}
     </div>
   </div>
 {% endblock %}
-

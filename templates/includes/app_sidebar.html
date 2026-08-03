@@ -1,23 +1,30 @@
 {% with url_name=request.resolver_match.url_name %}
 <nav class="sidebar-nav" aria-label="Main navigation">
-  {% if url_name == 'employee_dashboard' or url_name == 'hr_employee_portal' %}
-    {% if portal_mode == 'hr_view' or portal_mode == 'ceo_view' %}
-      <a class="sidebar-link" href="{% url 'employee_list' %}">
-        <i class="bi bi-arrow-left"></i><span>Back to Employees</span>
-      </a>
-      <button type="button" class="sidebar-link active" data-panel-target="attendance">
-        <i class="bi bi-clock-history"></i><span>View Attendance</span>
-      </button>
-      <button type="button" class="sidebar-link" data-panel-target="holidays">
-        <i class="bi bi-calendar-event"></i><span>Holidays</span>
-      </button>
-      <button type="button" class="sidebar-link" data-panel-target="history">
-        <i class="bi bi-table"></i><span>History</span>
-      </button>
-      <a class="sidebar-link" href="{% url 'hr_employee_personal_info' portal_employee.pk %}">
-        <i class="bi bi-person-vcard"></i><span>Personal Info</span>
-      </a>
-    {% else %}
+  {% if portal_mode == 'hr_view' or portal_mode == 'ceo_view' %}
+    <a class="sidebar-link" href="{% url 'employee_list' %}">
+      <i class="bi bi-arrow-left"></i><span>Back to Employees</span>
+    </a>
+    <a class="sidebar-link {% if url_name == 'hr_employee_portal' %}active{% endif %}" href="{% url 'hr_employee_portal' portal_employee.pk %}#attendance">
+      <i class="bi bi-clock-history"></i><span>View Attendance</span>
+    </a>
+    <a class="sidebar-link" href="{% url 'hr_employee_portal' portal_employee.pk %}#leaves">
+      <i class="bi bi-airplane"></i><span>Leave Balance</span>
+    </a>
+    <a class="sidebar-link" href="{% url 'hr_employee_leave_history' portal_employee.pk %}">
+      <i class="bi bi-calendar-x"></i><span>Leave History</span>
+    </a>
+    <a class="sidebar-link" href="{% url 'hr_employee_portal' portal_employee.pk %}#holidays">
+      <i class="bi bi-calendar-event"></i><span>Holidays</span>
+    </a>
+    <a class="sidebar-link" href="{% url 'hr_employee_portal' portal_employee.pk %}#history">
+      <i class="bi bi-table"></i><span>History</span>
+    </a>
+    <a class="sidebar-link" href="{% url 'hr_employee_personal_info' portal_employee.pk %}">
+      <i class="bi bi-person-vcard"></i><span>Personal Info</span>
+    </a>
+
+  {% elif request.user.role == 'employee' %}
+    {% if url_name == 'employee_dashboard' %}
       <button type="button" class="sidebar-link active" data-panel-target="attendance">
         <i class="bi bi-clock-history"></i><span>Mark Attendance</span>
       </button>
@@ -30,6 +37,40 @@
       <button type="button" class="sidebar-link" data-panel-target="leaves">
         <i class="bi bi-airplane"></i><span>Paid Leave Balance</span>
       </button>
+      <a class="sidebar-link" href="{% url 'employee_leave_requests' %}">
+        <i class="bi bi-calendar-x"></i><span>Request Leave</span>
+      </a>
+      <a class="sidebar-link" href="{% url 'employee_attendance_records' %}">
+        <i class="bi bi-table"></i><span>Attendance Record</span>
+      </a>
+      <a class="sidebar-link" href="{% url 'employee_payslips' %}">
+        <i class="bi bi-cash-stack"></i><span>Pay Slips</span>
+      </a>
+      <button type="button" class="sidebar-link" data-panel-target="regularization">
+        <i class="bi bi-pencil-square"></i><span>Regularization</span>
+      </button>
+      <button type="button" class="sidebar-link" data-panel-target="praise">
+        <i class="bi bi-envelope-heart"></i><span>Praise Letters</span>
+      </button>
+      <a class="sidebar-link" href="{% url 'employee_praise_letters' %}">
+        <i class="bi bi-download"></i><span>Download Praise</span>
+      </a>
+      <button type="button" class="sidebar-link" data-panel-target="history">
+        <i class="bi bi-clock-history"></i><span>Quick History</span>
+      </button>
+    {% else %}
+      <a class="sidebar-link" href="{% url 'employee_dashboard' %}#attendance">
+        <i class="bi bi-clock-history"></i><span>Mark Attendance</span>
+      </a>
+      <a class="sidebar-link" href="{% url 'employee_dashboard' %}#holidays">
+        <i class="bi bi-calendar-event"></i><span>Holidays</span>
+      </a>
+      <a class="sidebar-link" href="{% url 'employee_dashboard' %}#extra-days">
+        <i class="bi bi-calendar-plus"></i><span>Extra Working Days</span>
+      </a>
+      <a class="sidebar-link" href="{% url 'employee_dashboard' %}#leaves">
+        <i class="bi bi-airplane"></i><span>Paid Leave Balance</span>
+      </a>
       <a class="sidebar-link {% if url_name == 'employee_leave_requests' or url_name == 'leave_request_create' %}active{% endif %}" href="{% url 'employee_leave_requests' %}">
         <i class="bi bi-calendar-x"></i><span>Request Leave</span>
       </a>
@@ -39,25 +80,22 @@
       <a class="sidebar-link {% if url_name == 'employee_payslips' %}active{% endif %}" href="{% url 'employee_payslips' %}">
         <i class="bi bi-cash-stack"></i><span>Pay Slips</span>
       </a>
-      <button type="button" class="sidebar-link" data-panel-target="regularization">
+      <a class="sidebar-link" href="{% url 'employee_dashboard' %}#regularization">
         <i class="bi bi-pencil-square"></i><span>Regularization</span>
-      </button>
-      <button type="button" class="sidebar-link" data-panel-target="praise">
-        <i class="bi bi-envelope-heart"></i><span>Praise Letters</span>
-      </button>
+      </a>
       <a class="sidebar-link {% if url_name == 'employee_praise_letters' %}active{% endif %}" href="{% url 'employee_praise_letters' %}">
-        <i class="bi bi-download"></i><span>Download Praise</span>
+        <i class="bi bi-envelope-heart"></i><span>Praise Letters</span>
       </a>
-      <button type="button" class="sidebar-link" data-panel-target="history">
+      <a class="sidebar-link" href="{% url 'employee_dashboard' %}#history">
         <i class="bi bi-clock-history"></i><span>Quick History</span>
-      </button>
-      <a class="sidebar-link" href="{% url 'org_hierarchy' %}">
-        <i class="bi bi-diagram-3"></i><span>Organization</span>
-      </a>
-      <a class="sidebar-link {% if url_name == 'personal_info' %}active{% endif %}" href="{% url 'personal_info' %}">
-        <i class="bi bi-person-vcard"></i><span>Personal Info</span>
       </a>
     {% endif %}
+    <a class="sidebar-link {% if url_name == 'org_hierarchy' %}active{% endif %}" href="{% url 'org_hierarchy' %}">
+      <i class="bi bi-diagram-3"></i><span>Organization</span>
+    </a>
+    <a class="sidebar-link {% if url_name == 'personal_info' %}active{% endif %}" href="{% url 'personal_info' %}">
+      <i class="bi bi-person-vcard"></i><span>Personal Info</span>
+    </a>
 
   {% elif request.user.role == 'admin' %}
     <div class="sidebar-section-label">Main Menu</div>
@@ -83,7 +121,7 @@
       </a>
     {% endif %}
     <div class="sidebar-section-label">Manage</div>
-    <a class="sidebar-link {% if url_name == 'employee_list' or url_name == 'employee_create' or url_name == 'employee_update' %}active{% endif %}" href="{% url 'employee_list' %}">
+    <a class="sidebar-link {% if url_name == 'employee_list' or url_name == 'employee_create' or url_name == 'employee_update' or url_name == 'hr_employee_record' %}active{% endif %}" href="{% url 'employee_list' %}">
       <i class="bi bi-people"></i><span>Employees</span>
     </a>
     <a class="sidebar-link {% if url_name == 'admin_attendance_list' %}active{% endif %}" href="{% url 'admin_attendance_list' %}">
@@ -98,8 +136,11 @@
     <a class="sidebar-link {% if url_name == 'attendance_regularize' %}active{% endif %}" href="{% url 'attendance_regularize' %}">
       <i class="bi bi-pencil"></i><span>Regularize Attendance</span>
     </a>
-    <a class="sidebar-link {% if url_name == 'hr_leave_request_list' or url_name == 'hr_leave_request_review' %}active{% endif %}" href="{% url 'hr_leave_request_list' %}">
-      <i class="bi bi-calendar-x"></i><span>Leave Requests</span>
+    <a class="sidebar-link {% if url_name == 'hr_leave_request_list' or url_name == 'hr_leave_request_review' or url_name == 'hr_leave_balances' or url_name == 'hr_employee_leave_history' %}active{% endif %}" href="{% url 'hr_leave_request_list' %}">
+      <i class="bi bi-calendar-x"></i><span>Leave Records</span>
+    </a>
+    <a class="sidebar-link {% if url_name == 'hr_leave_balances' %}active{% endif %}" href="{% url 'hr_leave_balances' %}">
+      <i class="bi bi-pie-chart"></i><span>Leave Balances</span>
     </a>
     <a class="sidebar-link {% if url_name == 'hr_payslip_list' or url_name == 'hr_payslip_upload' %}active{% endif %}" href="{% url 'hr_payslip_list' %}">
       <i class="bi bi-cash-stack"></i><span>Pay Slips</span>
@@ -138,8 +179,23 @@
     <a class="sidebar-link {% if url_name == 'admin_dashboard' %}active{% endif %}" href="{% url 'admin_dashboard' %}">
       <i class="bi bi-building"></i><span>HR Portal</span>
     </a>
-    <a class="sidebar-link {% if url_name == 'employee_list' %}active{% endif %}" href="{% url 'employee_list' %}">
+    <a class="sidebar-link {% if url_name == 'employee_list' or url_name == 'employee_create' or url_name == 'employee_update' or url_name == 'hr_employee_record' %}active{% endif %}" href="{% url 'employee_list' %}">
       <i class="bi bi-people"></i><span>Employees</span>
+    </a>
+    <a class="sidebar-link {% if url_name == 'admin_attendance_list' %}active{% endif %}" href="{% url 'admin_attendance_list' %}">
+      <i class="bi bi-calendar-check"></i><span>Attendance Records</span>
+    </a>
+    <a class="sidebar-link {% if url_name == 'holiday_list' or url_name == 'holiday_create' or url_name == 'holiday_update' or url_name == 'ceo_holiday_announce' %}active{% endif %}" href="{% url 'holiday_list' %}">
+      <i class="bi bi-calendar3"></i><span>Holidays</span>
+    </a>
+    <a class="sidebar-link {% if url_name == 'hr_leave_request_list' or url_name == 'hr_leave_request_review' or url_name == 'hr_leave_balances' or url_name == 'hr_employee_leave_history' %}active{% endif %}" href="{% url 'hr_leave_request_list' %}">
+      <i class="bi bi-calendar-x"></i><span>Leave Records</span>
+    </a>
+    <a class="sidebar-link {% if url_name == 'hr_leave_balances' %}active{% endif %}" href="{% url 'hr_leave_balances' %}">
+      <i class="bi bi-pie-chart"></i><span>Leave Balances</span>
+    </a>
+    <a class="sidebar-link {% if url_name == 'hr_payslip_list' or url_name == 'hr_payslip_upload' %}active{% endif %}" href="{% url 'hr_payslip_list' %}">
+      <i class="bi bi-cash-stack"></i><span>Pay Slips</span>
     </a>
     <a class="sidebar-link {% if url_name == 'praise_letter_list' or url_name == 'praise_letter_create' or url_name == 'praise_letter_detail' %}active{% endif %}" href="{% url 'praise_letter_list' %}">
       <i class="bi bi-envelope-heart"></i><span>All Praise Letters</span>
@@ -176,8 +232,8 @@
     </a>
 
   {% else %}
-    <a class="sidebar-link {% if url_name == 'employee_dashboard' %}active{% endif %}" href="{% url 'employee_dashboard' %}">
-      <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+    <a class="sidebar-link" href="{% url 'home' %}">
+      <i class="bi bi-house"></i><span>Home</span>
     </a>
   {% endif %}
 </nav>

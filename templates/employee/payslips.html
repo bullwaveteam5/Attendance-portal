@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Pay Slips{% endblock %}
 {% block page_heading %}Pay Slips{% endblock %}
-{% block page_subheading %}<p class="app-page-subtitle mb-0">Download your monthly salary slips</p>{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Download salary slips uploaded by HR</p>{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_dashboard' %}">Dashboard</a>
+{% endblock %}
 
 {% block content %}
   <div class="content-card">
-    <div class="table-responsive">
+    <div class="table-responsive d-none d-md-block">
       <table class="table table-portal table-sm align-middle mb-0">
         <thead>
           <tr><th>Period</th><th>Title</th><th>Uploaded</th><th></th></tr>
@@ -27,6 +30,20 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+
+    <div class="data-card-list d-md-none">
+      {% for slip in payslips %}
+        <article class="data-item-card">
+          <div class="data-item-title">{{ slip.period_label }}</div>
+          <div class="data-item-meta mb-2">{{ slip.title|default:"Salary Slip" }} · {{ slip.uploaded_at|date:"M d, Y" }}</div>
+          <a class="btn btn-success btn-sm w-100" href="{% url 'employee_payslip_download' slip.pk %}">
+            <i class="bi bi-download me-1"></i>Download
+          </a>
+        </article>
+      {% empty %}
+        <p class="text-muted text-center mb-0 py-3">No pay slips uploaded yet.</p>
+      {% endfor %}
     </div>
   </div>
 {% endblock %}

@@ -1,68 +1,98 @@
 {% extends "base.html" %}
 {% block title %}Regularization Requests{% endblock %}
-{% block content %}
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <h1 class="h5 mb-0">Regularization Requests</h1>
-    <div class="d-flex gap-2">
-      <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin_dashboard' %}">Dashboard</a>
-      <a class="btn btn-outline-light btn-sm" href="{% url 'attendance_regularize' %}">Direct Regularize</a>
-    </div>
+{% block page_heading %}Regularization Requests{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Live employee requests waiting for HR / CEO action</p>{% endblock %}
+{% block page_actions %}
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin_dashboard' %}">Dashboard</a>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'attendance_regularize' %}">Direct Regularize</a>
   </div>
+{% endblock %}
 
-  <form class="card card-body mb-3" method="get">
-    <div class="row g-2 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label mb-1">Status</label>
-        <select class="form-select" name="status">
+{% block content %}
+  <div class="content-card mb-3">
+    <form class="row g-2 align-items-end" method="get" action="{% url 'regularization_request_list' %}">
+      <div class="col-8 col-md-4">
+        <label class="form-label mb-1" for="regStatus">Status</label>
+        <select class="form-select" id="regStatus" name="status">
           <option value="pending" {% if status == "pending" %}selected{% endif %}>Pending</option>
           <option value="approved" {% if status == "approved" %}selected{% endif %}>Approved</option>
           <option value="rejected" {% if status == "rejected" %}selected{% endif %}>Rejected</option>
           <option value="" {% if not status %}selected{% endif %}>All</option>
         </select>
       </div>
-      <div class="col-md-3">
+      <div class="col-4 col-md-3">
         <button class="btn btn-primary w-100" type="submit">Filter</button>
       </div>
-    </div>
-  </form>
+    </form>
+  </div>
 
-  <div class="table-responsive">
-    <table class="table table-sm table-striped align-middle">
-      <thead>
-        <tr>
-          <th>Employee</th>
-          <th>Date</th>
-          <th>Description</th>
-          <th>Status</th>
-          <th>HR decision</th>
-          <th>CEO override</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in requests %}
+  <div class="content-card">
+    <div class="table-responsive d-none d-md-block">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
           <tr>
-            <td>{{ r.employee.employee_id }} - {{ r.employee.username }}</td>
-            <td>{{ r.date }}</td>
-            <td class="text-muted">{{ r.description|truncatechars:80 }}</td>
-            <td>{{ r.status }}</td>
-            <td class="text-muted small">{{ r.reviewed_by.employee_id|default:"-" }} {% if r.reviewed_at %}({{ r.reviewed_at|date:"M d" }}){% endif %}</td>
-            <td class="text-muted small">{% if r.ceo_reviewed_by %}{{ r.ceo_reviewed_by.employee_id }} — {{ r.ceo_note|default:"Overridden" }}{% else %}-{% endif %}</td>
-            <td class="text-end">
-              {% if r.status == "pending" %}
-                <a class="btn btn-outline-primary btn-sm" href="{% url 'regularization_review' r.pk %}">Review</a>
-              {% else %}
-                <span class="text-muted small me-2">{{ r.hr_note|default:"-" }}</span>
-                {% if is_ceo_mode %}
-                  <a class="btn btn-outline-warning btn-sm" href="{% url 'ceo_regularization_override' r.pk %}">CEO Override</a>
-                {% endif %}
-              {% endif %}
-            </td>
+            <th>Employee</th>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>HR</th>
+            <th>CEO</th>
+            <th></th>
           </tr>
-        {% empty %}
-          <tr><td colspan="7" class="text-muted">No requests found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for r in requests %}
+            <tr>
+              <td>{{ r.employee.employee_id }} — {{ r.employee.username }}</td>
+              <td>{{ r.date|date:"M j, Y" }}</td>
+              <td class="text-muted">{{ r.description|truncatechars:80 }}</td>
+              <td>
+                {% if r.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                {% elif r.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+              </td>
+              <td class="text-muted small">{{ r.reviewed_by.employee_id|default:"—" }}{% if r.reviewed_at %} ({{ r.reviewed_at|date:"M d" }}){% endif %}</td>
+              <td class="text-muted small">{% if r.ceo_reviewed_by %}{{ r.ceo_reviewed_by.employee_id }}{% else %}—{% endif %}</td>
+              <td class="text-end text-nowrap">
+                {% if r.status == "pending" %}
+                  <a class="btn btn-outline-primary btn-sm" href="{% url 'regularization_review' r.pk %}">Review</a>
+                {% else %}
+                  {% if is_ceo_mode %}
+                    <a class="btn btn-outline-warning btn-sm" href="{% url 'ceo_regularization_override' r.pk %}">CEO Override</a>
+                  {% endif %}
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="text-muted text-center py-4">No requests found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="data-card-list d-md-none">
+      {% for r in requests %}
+        <article class="data-item-card">
+          <div class="d-flex justify-content-between gap-2 mb-2">
+            <div>
+              <div class="data-item-title">{{ r.employee.username }}</div>
+              <div class="data-item-meta">{{ r.employee.employee_id }} · {{ r.date|date:"M j, Y" }}</div>
+            </div>
+            {% if r.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+            {% elif r.status == 'approved' %}<span class="badge bg-success">Approved</span>
+            {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+          </div>
+          <div class="small text-muted mb-3">{{ r.description|truncatechars:140 }}</div>
+          {% if r.status == "pending" %}
+            <a class="btn btn-primary btn-sm w-100" href="{% url 'regularization_review' r.pk %}">Review</a>
+          {% elif is_ceo_mode %}
+            <a class="btn btn-outline-warning btn-sm w-100" href="{% url 'ceo_regularization_override' r.pk %}">CEO Override</a>
+          {% endif %}
+        </article>
+      {% empty %}
+        <p class="text-muted text-center mb-0 py-3">No requests found.</p>
+      {% endfor %}
+    </div>
   </div>
 {% endblock %}

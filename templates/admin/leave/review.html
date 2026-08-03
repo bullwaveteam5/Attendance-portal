@@ -1,30 +1,116 @@
 {% extends "base.html" %}
-{% block title %}Review Leave{% endblock %}
-{% block page_heading %}Review Leave Request{% endblock %}
+{% block title %}{% if can_decide %}Review Leave{% else %}Leave Record{% endif %}{% endblock %}
+{% block page_heading %}{% if can_decide %}Review Leave Request{% else %}Leave Application Record{% endif %}{% endblock %}
+{% block page_subheading %}
+  <p class="app-page-subtitle mb-0">
+    Live record for {{ leave_req.employee.employee_id }} — {{ leave_req.employee.username }}
+  </p>
+{% endblock %}
 {% block page_actions %}
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'hr_leave_request_list' %}">← Back</a>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'hr_leave_request_list' %}">← All leave</a>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_employee_leave_history' leave_req.employee.pk %}">Employee history</a>
+  </div>
 {% endblock %}
 
 {% block content %}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><div class="mini-stat"><span>Remaining ({{ leave_summary.month_label }})</span><strong class="text-success">{{ leave_summary.balance.remaining }}</strong></div></div>
+    <div class="col-6 col-lg-3"><div class="mini-stat"><span>Used</span><strong class="text-warning">{{ leave_summary.balance.used_leaves }}</strong></div></div>
+    <div class="col-6 col-lg-3"><div class="mini-stat"><span>On leave days</span><strong>{{ leave_summary.on_leave_days }}</strong></div></div>
+    <div class="col-6 col-lg-3"><div class="mini-stat"><span>This request</span><strong>{{ leave_req.duration_days }} day{{ leave_req.duration_days|pluralize }}</strong></div></div>
+  </div>
+
   <div class="content-card mb-4">
     <div class="row g-3">
-      <div class="col-md-6"><span class="profile-field-label">Employee</span><div class="profile-field-value">{{ leave_req.employee.employee_id }} — {{ leave_req.employee.username }}</div></div>
-      <div class="col-md-3"><span class="profile-field-label">Type</span><div class="profile-field-value">{{ leave_req.get_leave_type_display }}</div></div>
-      <div class="col-md-3"><span class="profile-field-label">Dates</span><div class="profile-field-value">{{ leave_req.start_date }} to {{ leave_req.end_date }}</div></div>
-      <div class="col-12"><span class="profile-field-label">Reason</span><div class="profile-field-value">{{ leave_req.reason|linebreaksbr }}</div></div>
+      <div class="col-md-4">
+        <span class="profile-field-label">Employee</span>
+        <div class="profile-field-value">{{ leave_req.employee.employee_id }} — {{ leave_req.employee.username }}</div>
+        <div class="small text-muted">{{ leave_req.employee.department|default:"No department" }}</div>
+      </div>
+      <div class="col-md-2">
+        <span class="profile-field-label">Type</span>
+        <div class="profile-field-value">{{ leave_req.get_leave_type_display }}</div>
+      </div>
+      <div class="col-md-3">
+        <span class="profile-field-label">Dates</span>
+        <div class="profile-field-value">{{ leave_req.start_date|date:"M j, Y" }} → {{ leave_req.end_date|date:"M j, Y" }}</div>
+      </div>
+      <div class="col-md-3">
+        <span class="profile-field-label">Status</span>
+        <div class="profile-field-value">
+          {% if leave_req.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+          {% elif leave_req.status == 'approved' %}<span class="badge bg-success">Approved</span>
+          {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+        </div>
+      </div>
+      <div class="col-md-4">
+        <span class="profile-field-label">Submitted</span>
+        <div class="profile-field-value">{{ leave_req.created_at|date:"M j, Y H:i" }}</div>
+      </div>
+      <div class="col-md-4">
+        <span class="profile-field-label">Reviewed by</span>
+        <div class="profile-field-value">
+          {% if leave_req.reviewed_by %}{{ leave_req.reviewed_by.employee_id }} — {{ leave_req.reviewed_by.username }}{% else %}—{% endif %}
+        </div>
+      </div>
+      <div class="col-md-4">
+        <span class="profile-field-label">Reviewed at</span>
+        <div class="profile-field-value">{% if leave_req.reviewed_at %}{{ leave_req.reviewed_at|date:"M j, Y H:i" }}{% else %}—{% endif %}</div>
+      </div>
+      <div class="col-12">
+        <span class="profile-field-label">Reason</span>
+        <div class="profile-field-value">{{ leave_req.reason|linebreaksbr }}</div>
+      </div>
+      {% if leave_req.hr_note and not can_decide %}
+        <div class="col-12">
+          <span class="profile-field-label">HR note</span>
+          <div class="profile-field-value">{{ leave_req.hr_note }}</div>
+        </div>
+      {% endif %}
     </div>
   </div>
+
+  {% if can_decide %}
+    <div class="content-card mb-4">
+      <h2 class="content-card-title">HR Decision</h2>
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label">HR Note (optional — shown to employee)</label>
+          {{ form.hr_note }}
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="submit" name="action" value="approve" class="btn btn-success">Approve leave</button>
+          <button type="submit" name="action" value="reject" class="btn btn-danger">Reject leave</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
   <div class="content-card">
-    <form method="post">
-      {% csrf_token %}
-      <div class="mb-3">
-        <label class="form-label">HR Note (optional)</label>
-        {{ form.hr_note }}
-      </div>
-      <div class="d-flex gap-2">
-        <button type="submit" name="action" value="approve" class="btn btn-success">Approve</button>
-        <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
-      </div>
-    </form>
+    <h2 class="content-card-title">Other leave applications for this employee</h2>
+    <div class="table-responsive">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead><tr><th>Dates</th><th>Type</th><th>Days</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for lr in prior_requests %}
+            <tr>
+              <td>{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</td>
+              <td>{{ lr.get_leave_type_display }}</td>
+              <td>{{ lr.duration_days }}</td>
+              <td>
+                {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+              </td>
+              <td class="text-end"><a class="btn btn-outline-secondary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">View</a></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-muted text-center py-3">No other leave applications on record.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 {% endblock %}

@@ -7,6 +7,7 @@ from django.contrib.auth.views import LoginView
 from django.db.models import Count, Q, Sum
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -30,11 +31,18 @@ from attendance.models import (
     AttendanceStatus,
     LeaveRequest,
     LeaveRequestStatus,
+    LeaveRequestType,
+    MonthlyLeaveBalance,
     PaySlip,
     RegularizationStatus,
 )
 from attendance.services import AttendanceError, check_in, check_out, regularize_attendance, today_status
-from attendance.leave_services import get_leave_summary
+from attendance.leave_services import (
+    apply_approved_leave_request,
+    ensure_monthly_leave_balance,
+    get_leave_summary,
+    reverse_leave_deduction_for_date,
+)
 from attendance.location import LocationVerificationError, log_portal_access, verify_office_access
 from dashboard.mixins import OfficeLocationLoginMixin
 
@@ -52,13 +60,15 @@ from .forms import (
     HrLeaveReviewForm,
     PaySlipUploadForm,
 )
-from .models import Holiday, HolidayAnnouncementRead, HolidayEventType
+from .models import Holiday, HolidayAnnouncementRead, HolidayApprovalStatus, HolidayEventType
 
 
-def _month_calendar_events(for_date: date) -> dict:
+def _month_calendar_events(for_date: date, *, approved_only: bool = True) -> dict:
     month_start = for_date.replace(day=1)
     month_end = (month_start + timezone.timedelta(days=32)).replace(day=1) - timezone.timedelta(days=1)
     qs = Holiday.objects.filter(date__gte=month_start, date__lte=month_end).order_by("date")
+    if approved_only:
+        qs = qs.filter(approval_status=HolidayApprovalStatus.APPROVED)
     return {
         "upcoming_holidays": qs.filter(event_type=HolidayEventType.HOLIDAY),
         "extra_working_days": qs.filter(event_type=HolidayEventType.EXTRA_WORKING),
@@ -69,7 +79,10 @@ def _month_calendar_events(for_date: date) -> dict:
 def _notify_holiday_announcements(request: HttpRequest) -> None:
     read_ids = HolidayAnnouncementRead.objects.filter(user=request.user).values_list("holiday_id", flat=True)
     unread = (
-        Holiday.objects.filter(announcement_active=True)
+        Holiday.objects.filter(
+            announcement_active=True,
+            approval_status=HolidayApprovalStatus.APPROVED,
+        )
         .exclude(ceo_message="")
         .exclude(pk__in=read_ids)
         .order_by("-announced_at")[:3]
@@ -89,11 +102,70 @@ def _notify_holiday_announcements(request: HttpRequest) -> None:
 
 def _own_attendance_context(user: User) -> dict:
     record = today_status(employee=user)
+    on_leave = bool(record and record.status == AttendanceStatus.ON_LEAVE)
     return {
         "my_attendance_record": record,
-        "my_can_check_in": not (record and record.check_in),
-        "my_can_check_out": bool(record and record.check_in and not record.check_out),
+        "my_on_leave": on_leave,
+        "my_can_check_in": (not on_leave) and not (record and record.check_in),
+        "my_can_check_out": (not on_leave) and bool(record and record.check_in and not record.check_out),
     }
+
+
+def _present_statuses():
+    return (AttendanceStatus.PRESENT, AttendanceStatus.FULL_DAY, AttendanceStatus.HALF_DAY)
+
+
+def _count_present_today(today) -> int:
+    return (
+        Attendance.objects.filter(
+            date=today,
+            employee__role=UserRole.EMPLOYEE,
+            status__in=_present_statuses(),
+        )
+        .values("employee_id")
+        .distinct()
+        .count()
+    )
+
+
+def _count_on_leave_today(today) -> int:
+    return Attendance.objects.filter(
+        date=today,
+        employee__role=UserRole.EMPLOYEE,
+        status=AttendanceStatus.ON_LEAVE,
+    ).count()
+
+
+def _today_employee_attendance_board(today) -> list[dict]:
+    """
+    Live roster for HR/CEO: every active employee with today's check-in/out
+    (or Not marked) so records stay visible as people punch in/out.
+    """
+    employees = list(
+        User.objects.filter(role=UserRole.EMPLOYEE, is_active=True).order_by("employee_id")
+    )
+    records = {
+        row.employee_id: row
+        for row in Attendance.objects.filter(date=today, employee__role=UserRole.EMPLOYEE).select_related(
+            "employee"
+        )
+    }
+    board = []
+    for emp in employees:
+        att = records.get(emp.id)
+        board.append(
+            {
+                "employee": emp,
+                "record": att,
+                "check_in": att.check_in if att else None,
+                "check_out": att.check_out if att else None,
+                "status": att.status if att else "Not marked",
+                "is_late": bool(att and att.is_late),
+                "working_hours": att.working_hours if att else None,
+                "overtime_hours": att.overtime_hours if att else None,
+            }
+        )
+    return board
 
 
 def _attendance_redirect_url(user: User) -> str:
@@ -298,7 +370,15 @@ def initial_setup(request: HttpRequest) -> HttpResponse:
 @employee_required
 def employee_dashboard(request: HttpRequest) -> HttpResponse:
     today = timezone.localdate()
-    soon = Holiday.objects.filter(date__gte=today, date__lte=today + timezone.timedelta(days=7)).order_by("date")[:3]
+    soon = (
+        Holiday.objects.filter(
+            date__gte=today,
+            date__lte=today + timezone.timedelta(days=7),
+            approval_status=HolidayApprovalStatus.APPROVED,
+            event_type=HolidayEventType.HOLIDAY,
+        )
+        .order_by("date")[:3]
+    )
     if soon:
         messages.info(request, f"Upcoming holiday: {soon[0].name} on {soon[0].date}")
     today_md = (today.month, today.day)
@@ -311,10 +391,11 @@ def employee_dashboard(request: HttpRequest) -> HttpResponse:
         messages.info(request, "Happy Work Anniversary! Thank you for your contribution.")
     _notify_holiday_announcements(request)
     record = today_status(employee=request.user)
-    can_check_in = not (record and record.check_in)
-    can_check_out = bool(record and record.check_in and not record.check_out)
+    on_leave_today = bool(record and record.status == AttendanceStatus.ON_LEAVE)
+    can_check_in = (not on_leave_today) and not (record and record.check_in)
+    can_check_out = (not on_leave_today) and bool(record and record.check_in and not record.check_out)
     history = Attendance.objects.filter(employee=request.user).order_by("-date")[:60]
-    calendar = _month_calendar_events(today)
+    calendar = _month_calendar_events(today, approved_only=True)
     praise_letters = PraiseLetter.objects.filter(employee=request.user).select_related("issued_by").order_by("-issued_at")[:10]
     unread_praise = PraiseLetter.objects.filter(employee=request.user, is_read=False).order_by("-issued_at")
     for letter in unread_praise[:2]:
@@ -325,7 +406,8 @@ def employee_dashboard(request: HttpRequest) -> HttpResponse:
     if unread_praise.exists():
         unread_praise.update(is_read=True)
     leave_summary = get_leave_summary(employee=request.user, for_date=today)
-    my_regularizations = AttendanceRegularizationRequest.objects.filter(employee=request.user).order_by("-created_at")[:5]
+    my_regularizations = AttendanceRegularizationRequest.objects.filter(employee=request.user).order_by("-created_at")[:10]
+    my_leave_requests = LeaveRequest.objects.filter(employee=request.user).order_by("-created_at")[:8]
     return render(
         request,
         "employee/dashboard.html",
@@ -339,9 +421,11 @@ def employee_dashboard(request: HttpRequest) -> HttpResponse:
             "portal_mode": "self",
             "can_check_in": can_check_in,
             "can_check_out": can_check_out,
+            "on_leave_today": on_leave_today,
             "holiday_month": today.strftime("%B %Y"),
             "leave_summary": leave_summary,
             "my_regularizations": my_regularizations,
+            "my_leave_requests": my_leave_requests,
         },
     )
 
@@ -405,10 +489,11 @@ def hr_employee_portal(request: HttpRequest, pk: int) -> HttpResponse:
     can_check_in = False
     can_check_out = False
     history = Attendance.objects.filter(employee=employee).order_by("-date")[:60]
-    calendar = _month_calendar_events(today)
+    calendar = _month_calendar_events(today, approved_only=True)
     praise_letters = PraiseLetter.objects.filter(employee=employee).select_related("issued_by").order_by("-issued_at")[:10]
     leave_summary = get_leave_summary(employee=employee, for_date=today)
-    my_regularizations = AttendanceRegularizationRequest.objects.filter(employee=employee).order_by("-created_at")[:5]
+    my_regularizations = AttendanceRegularizationRequest.objects.filter(employee=employee).order_by("-created_at")[:10]
+    my_leave_requests = LeaveRequest.objects.filter(employee=employee).order_by("-created_at")[:8]
     viewer = "CEO" if request.user.role == UserRole.CEO else "HR"
     messages.info(request, f"{viewer} view: {employee.employee_id} - {employee.username} (read-only).")
     portal_mode = "ceo_view" if request.user.role == UserRole.CEO else "hr_view"
@@ -426,9 +511,11 @@ def hr_employee_portal(request: HttpRequest, pk: int) -> HttpResponse:
             "portal_employee": employee,
             "can_check_in": can_check_in,
             "can_check_out": can_check_out,
+            "on_leave_today": bool(record and record.status == AttendanceStatus.ON_LEAVE),
             "holiday_month": today.strftime("%B %Y"),
             "leave_summary": leave_summary,
             "my_regularizations": my_regularizations,
+            "my_leave_requests": my_leave_requests,
         },
     )
 
@@ -470,7 +557,13 @@ def _attendance_action_response(request: HttpRequest, user: User, *, success_mes
 
 def _attendance_error_response(request: HttpRequest, message: str, *, status: int = 400) -> HttpResponse:
     if _wants_json(request):
-        return JsonResponse({"success": False, "message": message}, status=status)
+        payload = {"success": False, "message": message}
+        lowered = message.lower()
+        if "not near the company" in lowered or "outside the office" in lowered or "cannot access" in lowered:
+            payload["code"] = "outside_office"
+            status = 403
+        return JsonResponse(payload, status=status)
+    messages.error(request, message)
     return render(request, "employee/action_error.html", {"message": message}, status=status)
 
 
@@ -552,7 +645,15 @@ def employee_check_out(request: HttpRequest) -> HttpResponse:
 @admin_or_ceo_required
 def admin_dashboard(request: HttpRequest) -> HttpResponse:
     today = timezone.localdate()
-    soon = Holiday.objects.filter(date__gte=today, date__lte=today + timezone.timedelta(days=7)).order_by("date")[:3]
+    soon = (
+        Holiday.objects.filter(
+            date__gte=today,
+            date__lte=today + timezone.timedelta(days=7),
+            approval_status=HolidayApprovalStatus.APPROVED,
+            event_type=HolidayEventType.HOLIDAY,
+        )
+        .order_by("date")[:3]
+    )
     if soon:
         messages.info(request, f"Upcoming holiday: {soon[0].name} on {soon[0].date}")
     _notify_holiday_announcements(request)
@@ -567,27 +668,62 @@ def admin_dashboard(request: HttpRequest) -> HttpResponse:
         messages.info(request, f"Work anniversaries today: {', '.join([u.username for u in anns[:5]])}")
 
     total_employees = User.objects.filter(role=UserRole.EMPLOYEE).count()
-    present_today = Attendance.objects.filter(date=today).values("employee_id").distinct().count()
-    late_today = Attendance.objects.filter(date=today, is_late=True).count()
-    half_day_today = Attendance.objects.filter(date=today, status="Half Day").count()
+    present_today = _count_present_today(today)
+    on_leave_today = _count_on_leave_today(today)
+    late_today = Attendance.objects.filter(
+        date=today, is_late=True, employee__role=UserRole.EMPLOYEE
+    ).count()
+    half_day_today = Attendance.objects.filter(
+        date=today, status=AttendanceStatus.HALF_DAY, employee__role=UserRole.EMPLOYEE
+    ).count()
     overtime_today_total = (
-        Attendance.objects.filter(date=today).aggregate(total=Sum("overtime_hours"))["total"] or 0
+        Attendance.objects.filter(date=today, employee__role=UserRole.EMPLOYEE).aggregate(
+            total=Sum("overtime_hours")
+        )["total"]
+        or 0
     )
     today_overtime = (
         Attendance.objects.select_related("employee")
-        .filter(date=today, overtime_hours__gt=0)
+        .filter(date=today, overtime_hours__gt=0, employee__role=UserRole.EMPLOYEE)
         .order_by("-overtime_hours")[:20]
     )
 
-    absent_today = total_employees - Attendance.objects.filter(date=today, employee__role=UserRole.EMPLOYEE).values(
-        "employee_id"
-    ).distinct().count()
+    accounted = present_today + on_leave_today
+    absent_today = max(total_employees - accounted, 0)
 
-    recent = Attendance.objects.select_related("employee").filter(date=today).order_by("-check_in")[:50]
-    calendar = _month_calendar_events(today)
+    # Live employee-only board (includes staff who have not marked yet).
+    today_attendance_board = _today_employee_attendance_board(today)
+    recent = (
+        Attendance.objects.select_related("employee")
+        .filter(date=today, employee__role=UserRole.EMPLOYEE)
+        .order_by("-check_in", "employee__employee_id")
+    )
+    # HR/CEO dashboard shows all calendar entries (incl. pending) so approvals stay visible.
+    calendar = _month_calendar_events(today, approved_only=False)
     pending_regularizations = AttendanceRegularizationRequest.objects.filter(
         status=RegularizationStatus.PENDING
     ).select_related("employee")[:8]
+    pending_leave_requests = (
+        LeaveRequest.objects.filter(status=LeaveRequestStatus.PENDING)
+        .select_related("employee")
+        .order_by("-created_at")[:10]
+    )
+    pending_leave_count = LeaveRequest.objects.filter(status=LeaveRequestStatus.PENDING).count()
+    pending_holidays = (
+        Holiday.objects.filter(approval_status=HolidayApprovalStatus.PENDING)
+        .order_by("date")[:8]
+    )
+    pending_holiday_count = Holiday.objects.filter(approval_status=HolidayApprovalStatus.PENDING).count()
+    if pending_leave_count:
+        messages.warning(
+            request,
+            f"{pending_leave_count} leave request(s) waiting for HR/CEO approval.",
+        )
+    if pending_holiday_count:
+        messages.info(
+            request,
+            f"{pending_holiday_count} holiday/extra-day entry(ies) waiting for dual HR + CEO approval.",
+        )
     recent_praise_letters = PraiseLetter.objects.select_related("employee", "issued_by").order_by("-issued_at")[:8]
 
     return render(
@@ -598,14 +734,20 @@ def admin_dashboard(request: HttpRequest) -> HttpResponse:
             "total_employees": total_employees,
             "present_today": present_today,
             "absent_today": max(absent_today, 0),
+            "on_leave_today": on_leave_today,
             "late_today": late_today,
             "half_day_today": half_day_today,
             "overtime_today_total": overtime_today_total,
             "today_overtime": today_overtime,
             "recent": recent,
+            "today_attendance_board": today_attendance_board,
             "upcoming_holidays": calendar["upcoming_holidays"],
             "extra_working_days": calendar["extra_working_days"],
             "pending_regularizations": pending_regularizations,
+            "pending_leave_requests": pending_leave_requests,
+            "pending_leave_count": pending_leave_count,
+            "pending_holidays": pending_holidays,
+            "pending_holiday_count": pending_holiday_count,
             "recent_praise_letters": recent_praise_letters,
             "holiday_month": today.strftime("%B %Y"),
             "export_month": today.month,
@@ -630,15 +772,23 @@ def ceo_holiday_announce(request: HttpRequest) -> HttpResponse:
                     "name": data["name"],
                     "event_type": data["event_type"],
                     "ceo_message": data["ceo_message"],
-                    "announced_by": request.user,
-                    "announced_at": timezone.now(),
-                    "announcement_active": bool(data["ceo_message"].strip()),
                     "is_optional": False,
+                    "approval_status": HolidayApprovalStatus.PENDING,
+                    "hr_approved_by": None,
+                    "hr_approved_at": None,
                 },
             )
+            holiday.apply_role_approval(request.user)
+            holiday.save()
             HolidayAnnouncementRead.objects.filter(holiday=holiday).delete()
             label = "Extra working day" if holiday.event_type == HolidayEventType.EXTRA_WORKING else "Holiday"
-            messages.success(request, f"CEO notice sent — {label} on {holiday.date} announced to all staff.")
+            if holiday.approval_status == HolidayApprovalStatus.APPROVED:
+                messages.success(request, f"{label} on {holiday.date} is approved and visible to staff.")
+            else:
+                messages.success(
+                    request,
+                    f"CEO approved {label.lower()} on {holiday.date}. Waiting for HR approval before staff can see it.",
+                )
             return redirect("holiday_list")
     else:
         form = CeoHolidayAnnounceForm()
@@ -698,13 +848,16 @@ def ceo_regularization_override(request: HttpRequest, pk: int) -> HttpResponse:
         action = request.POST.get("action")
         form = CeoRegularizationOverrideForm(request.POST)
         if action == "reject":
-            Attendance.objects.filter(employee=reg_req.employee, date=reg_req.date).delete()
+            # Only undo attendance if HR (or prior CEO) had already approved it.
+            if reg_req.status == RegularizationStatus.APPROVED:
+                reverse_leave_deduction_for_date(employee=reg_req.employee, att_date=reg_req.date)
+                Attendance.objects.filter(employee=reg_req.employee, date=reg_req.date).delete()
             reg_req.status = RegularizationStatus.REJECTED
             reg_req.ceo_note = request.POST.get("ceo_note", "").strip()
             reg_req.ceo_reviewed_by = request.user
             reg_req.ceo_reviewed_at = timezone.now()
             reg_req.save()
-            messages.success(request, "CEO overruled HR — regularization rejected.")
+            messages.success(request, "CEO overruled — regularization rejected. Attendance updated everywhere.")
             return redirect("regularization_request_list")
 
         if form.is_valid():
@@ -712,19 +865,27 @@ def ceo_regularization_override(request: HttpRequest, pk: int) -> HttpResponse:
             if not check_in:
                 form.add_error("check_in", "Check-in time is required when approving.")
             else:
-                regularize_attendance(
-                    employee=reg_req.employee,
-                    att_date=reg_req.date,
-                    check_in=check_in,
-                    check_out=None,
-                )
+                try:
+                    regularize_attendance(
+                        employee=reg_req.employee,
+                        att_date=reg_req.date,
+                        check_in=check_in,
+                        check_out=None,
+                    )
+                except AttendanceError as e:
+                    messages.error(request, str(e))
+                    return render(
+                        request,
+                        "ceo/regularization/override.html",
+                        {"reg_req": reg_req, "form": form},
+                    )
                 reg_req.status = RegularizationStatus.APPROVED
                 reg_req.ceo_note = form.cleaned_data.get("ceo_note", "")
                 reg_req.ceo_reviewed_by = request.user
                 reg_req.ceo_reviewed_at = timezone.now()
                 reg_req.save()
-                messages.success(request, "CEO overruled HR — regularization approved.")
-                return redirect("regularization_request_list")
+                messages.success(request, "CEO overruled — regularization approved. Visible on all attendance pages.")
+                return redirect(f"{reverse('regularization_request_list')}?status=approved")
     else:
         form = CeoRegularizationOverrideForm()
 
@@ -741,6 +902,7 @@ def holiday_list(request: HttpRequest) -> HttpResponse:
     today = timezone.localdate()
     month = request.GET.get("month", "").strip()
     year = request.GET.get("year", "").strip()
+    status = request.GET.get("status", "").strip()
 
     try:
         month_i = int(month) if month else today.month
@@ -753,7 +915,15 @@ def holiday_list(request: HttpRequest) -> HttpResponse:
     month_start = date(year_i, month_i, 1)
     month_end = (month_start + timezone.timedelta(days=32)).replace(day=1) - timezone.timedelta(days=1)
 
-    qs = Holiday.objects.filter(date__gte=month_start, date__lte=month_end).order_by("date")
+    qs = (
+        Holiday.objects.filter(date__gte=month_start, date__lte=month_end)
+        .select_related("hr_approved_by", "ceo_approved_by")
+        .order_by("date")
+    )
+    if status in {HolidayApprovalStatus.PENDING, HolidayApprovalStatus.APPROVED, HolidayApprovalStatus.REJECTED}:
+        qs = qs.filter(approval_status=status)
+
+    pending_count = Holiday.objects.filter(approval_status=HolidayApprovalStatus.PENDING).count()
     return render(
         request,
         "admin/holidays/list.html",
@@ -763,6 +933,9 @@ def holiday_list(request: HttpRequest) -> HttpResponse:
             "year": year_i,
             "month_label": month_start.strftime("%B %Y"),
             "is_ceo_mode": request.user.role == UserRole.CEO,
+            "is_hr_mode": request.user.role == UserRole.ADMIN,
+            "status_filter": status,
+            "pending_count": pending_count,
         },
     )
 
@@ -774,9 +947,21 @@ def holiday_create(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = HolidayForm(request.POST, ceo_mode=ceo_mode)
         if form.is_valid():
-            announced_by = request.user if ceo_mode else None
-            form.save(announced_by=announced_by)
-            messages.success(request, "Calendar entry saved.")
+            holiday = form.save(commit=False, announced_by=request.user if ceo_mode else None)
+            holiday.approval_status = HolidayApprovalStatus.PENDING
+            holiday.hr_approved_by = None
+            holiday.hr_approved_at = None
+            holiday.ceo_approved_by = None
+            holiday.ceo_approved_at = None
+            holiday.announcement_active = False
+            holiday.save()
+            holiday.apply_role_approval(request.user)
+            holiday.save()
+            if holiday.approval_status == HolidayApprovalStatus.APPROVED:
+                messages.success(request, "Calendar entry approved and visible to employees.")
+            else:
+                waiting = "CEO" if request.user.role == UserRole.ADMIN else "HR"
+                messages.success(request, f"Calendar entry saved. Waiting for {waiting} approval.")
             return redirect("holiday_list")
     else:
         form = HolidayForm(ceo_mode=ceo_mode)
@@ -792,9 +977,22 @@ def holiday_update(request: HttpRequest, pk: int) -> HttpResponse:
     if request.method == "POST":
         form = HolidayForm(request.POST, instance=holiday, ceo_mode=ceo_mode)
         if form.is_valid():
-            announced_by = request.user if ceo_mode else None
-            form.save(announced_by=announced_by)
-            messages.success(request, "Calendar entry updated.")
+            holiday = form.save(commit=False, announced_by=request.user if ceo_mode else None)
+            # Edits require fresh dual approval so staff don't see unreviewed changes.
+            holiday.approval_status = HolidayApprovalStatus.PENDING
+            holiday.hr_approved_by = None
+            holiday.hr_approved_at = None
+            holiday.ceo_approved_by = None
+            holiday.ceo_approved_at = None
+            holiday.announcement_active = False
+            holiday.save()
+            holiday.apply_role_approval(request.user)
+            holiday.save()
+            waiting = "CEO" if request.user.role == UserRole.ADMIN else "HR"
+            if holiday.approval_status == HolidayApprovalStatus.APPROVED:
+                messages.success(request, "Calendar entry updated and approved.")
+            else:
+                messages.success(request, f"Calendar entry updated. Waiting for {waiting} approval.")
             return redirect("holiday_list")
     else:
         form = HolidayForm(instance=holiday, ceo_mode=ceo_mode)
@@ -803,6 +1001,35 @@ def holiday_update(request: HttpRequest, pk: int) -> HttpResponse:
         "admin/holidays/form.html",
         {"form": form, "title": "Update Calendar Entry", "ceo_mode": ceo_mode},
     )
+
+
+@login_required
+@admin_or_ceo_required
+def holiday_approve(request: HttpRequest, pk: int) -> HttpResponse:
+    holiday = get_object_or_404(Holiday, pk=pk)
+    if request.method != "POST":
+        return HttpResponseBadRequest("POST required")
+
+    action = request.POST.get("action", "approve")
+    note = request.POST.get("note", "").strip()
+    if action == "reject":
+        holiday.reject_by(request.user, note=note)
+        holiday.save()
+        HolidayAnnouncementRead.objects.filter(holiday=holiday).delete()
+        messages.success(request, f"Rejected calendar entry for {holiday.date}. Hidden from employee pages.")
+    else:
+        holiday.apply_role_approval(request.user, note=note)
+        holiday.save()
+        if holiday.approval_status == HolidayApprovalStatus.APPROVED:
+            HolidayAnnouncementRead.objects.filter(holiday=holiday).delete()
+            messages.success(
+                request,
+                f"{holiday.name} on {holiday.date} is fully approved (HR + CEO) and now visible to all employees.",
+            )
+        else:
+            waiting = "CEO" if request.user.role == UserRole.ADMIN else "HR"
+            messages.success(request, f"Your approval saved. Waiting for {waiting} before staff can see it.")
+    return redirect("holiday_list")
 
 
 @login_required
@@ -819,11 +1046,49 @@ def holiday_delete(request: HttpRequest, pk: int) -> HttpResponse:
 @login_required
 @admin_or_ceo_required
 def employee_list(request: HttpRequest) -> HttpResponse:
-    qs = User.objects.filter(role=UserRole.EMPLOYEE).order_by("employee_id")
+    today = timezone.localdate()
+    qs = (
+        User.objects.filter(role=UserRole.EMPLOYEE)
+        .annotate(
+            pending_leaves=Count(
+                "leave_requests",
+                filter=Q(leave_requests__status=LeaveRequestStatus.PENDING),
+            ),
+            total_leaves=Count("leave_requests"),
+        )
+        .order_by("employee_id")
+    )
     q = request.GET.get("q", "").strip()
     if q:
         qs = qs.filter(Q(employee_id__icontains=q) | Q(username__icontains=q) | Q(department__icontains=q))
-    return render(request, "admin/employees/list.html", {"employees": qs, "q": q})
+
+    employees = list(qs)
+    today_map = {
+        row.employee_id: row
+        for row in Attendance.objects.filter(
+            date=today, employee_id__in=[e.id for e in employees]
+        )
+    }
+    for emp in employees:
+        balance = ensure_monthly_leave_balance(employee=emp, for_date=today)
+        emp.leave_remaining = balance.remaining
+        emp.leave_used = balance.used_leaves
+        att = today_map.get(emp.id)
+        emp.today_record = att
+        emp.today_status = att.status if att else "Not marked"
+        emp.today_check_in = att.check_in if att else None
+        emp.today_check_out = att.check_out if att else None
+
+    return render(
+        request,
+        "admin/employees/list.html",
+        {
+            "employees": employees,
+            "q": q,
+            "leave_month": today.strftime("%B %Y"),
+            "today": today,
+        },
+    )
 
 
 @login_required
@@ -833,6 +1098,7 @@ def employee_create(request: HttpRequest) -> HttpResponse:
         form = EmployeeUpsertForm(request.POST)
         if form.is_valid():
             form.save()
+            messages.success(request, "Employee created successfully.")
             return redirect("employee_list")
     else:
         form = EmployeeUpsertForm(initial={"role": UserRole.EMPLOYEE, "is_active": True})
@@ -842,21 +1108,100 @@ def employee_create(request: HttpRequest) -> HttpResponse:
 @login_required
 @admin_or_ceo_required
 def employee_update(request: HttpRequest, pk: int) -> HttpResponse:
-    employee = get_object_or_404(User, pk=pk)
+    employee = get_object_or_404(User, pk=pk, role=UserRole.EMPLOYEE)
+    today = timezone.localdate()
+    leave_summary = get_leave_summary(employee=employee, for_date=today)
+    leave_requests = LeaveRequest.objects.filter(employee=employee).order_by("-created_at")[:8]
     if request.method == "POST":
         form = EmployeeUpsertForm(request.POST, instance=employee)
         if form.is_valid():
-            form.save()
-            return redirect("employee_list")
+            # Prevent role escalation via employee edit form.
+            updated = form.save(commit=False)
+            updated.role = UserRole.EMPLOYEE
+            updated.is_staff = False
+            updated.save()
+            messages.success(request, "Employee record updated. Leave and attendance data are unchanged.")
+            return redirect("hr_employee_record", pk=employee.pk)
     else:
         form = EmployeeUpsertForm(instance=employee)
-    return render(request, "admin/employees/form.html", {"form": form, "title": "Update Employee"})
+    return render(
+        request,
+        "admin/employees/form.html",
+        {
+            "form": form,
+            "title": "Update Employee",
+            "employee": employee,
+            "leave_summary": leave_summary,
+            "leave_requests": leave_requests,
+        },
+    )
+
+
+@login_required
+@admin_or_ceo_required
+def hr_employee_record(request: HttpRequest, pk: int) -> HttpResponse:
+    """Full live employee record for HR and CEO: profile, leave, attendance, regularization."""
+    employee = get_object_or_404(User, pk=pk, role=UserRole.EMPLOYEE)
+    today = timezone.localdate()
+    try:
+        month = int(request.GET.get("month", today.month))
+        year = int(request.GET.get("year", today.year))
+        month = max(1, min(12, month))
+        year = max(2020, min(2100, year))
+    except (TypeError, ValueError):
+        month, year = today.month, today.year
+
+    leave_summary = get_leave_summary(employee=employee, for_date=date(year, month, 1))
+    leave_requests = (
+        LeaveRequest.objects.filter(employee=employee)
+        .select_related("reviewed_by")
+        .order_by("-created_at")
+    )
+    attendance_records = list(
+        Attendance.objects.filter(employee=employee, date__year=year, date__month=month).order_by("-date")
+    )
+    regularizations = (
+        AttendanceRegularizationRequest.objects.filter(employee=employee)
+        .select_related("reviewed_by", "ceo_reviewed_by")
+        .order_by("-created_at")[:20]
+    )
+    balances = MonthlyLeaveBalance.objects.filter(employee=employee).order_by("-year", "-month")[:12]
+    payslips = PaySlip.objects.filter(employee=employee).order_by("-year", "-month")[:12]
+    praise_letters = PraiseLetter.objects.filter(employee=employee).select_related("issued_by").order_by("-issued_at")[:8]
+
+    leave_counts = {
+        "total": leave_requests.count(),
+        "pending": leave_requests.filter(status=LeaveRequestStatus.PENDING).count(),
+        "approved": leave_requests.filter(status=LeaveRequestStatus.APPROVED).count(),
+        "rejected": leave_requests.filter(status=LeaveRequestStatus.REJECTED).count(),
+    }
+
+    return render(
+        request,
+        "admin/employees/record.html",
+        {
+            "employee": employee,
+            "leave_summary": leave_summary,
+            "leave_requests": leave_requests[:100],
+            "leave_counts": leave_counts,
+            "attendance_records": attendance_records,
+            "regularizations": regularizations,
+            "balances": balances,
+            "payslips": payslips,
+            "praise_letters": praise_letters,
+            "month": month,
+            "year": year,
+            "month_label": date(year, month, 1).strftime("%B %Y"),
+            "month_choices": list(range(1, 13)),
+            "is_ceo_mode": request.user.role == UserRole.CEO,
+        },
+    )
 
 
 @login_required
 @admin_or_ceo_required
 def employee_delete(request: HttpRequest, pk: int) -> HttpResponse:
-    employee = get_object_or_404(User, pk=pk)
+    employee = get_object_or_404(User, pk=pk, role=UserRole.EMPLOYEE)
     if request.method == "POST":
         employee.delete()
         return redirect("employee_list")
@@ -867,44 +1212,92 @@ def employee_delete(request: HttpRequest, pk: int) -> HttpResponse:
 @admin_or_ceo_required
 def admin_attendance_list(request: HttpRequest) -> HttpResponse:
     today = timezone.localdate()
-    qs = Attendance.objects.select_related("employee").all()
+    # Employee check-in/out only — HR/CEO self punches are not mixed into staff records.
+    qs = Attendance.objects.select_related("employee").filter(employee__role=UserRole.EMPLOYEE)
 
-    date = request.GET.get("date", "").strip()
+    raw_date = request.GET.get("date")
+    raw_month = request.GET.get("month")
+    raw_year = request.GET.get("year")
+    # Default landing: today's live punches so new check-in/out appear immediately.
+    if raw_date is None and raw_month is None and raw_year is None:
+        filter_date = today.isoformat()
+    else:
+        filter_date = (raw_date or "").strip()
+
     employee_id = request.GET.get("employee_id", "").strip()
     department = request.GET.get("department", "").strip()
-    month = request.GET.get("month", str(today.month)).strip()
-    year = request.GET.get("year", str(today.year)).strip()
+    status = request.GET.get("status", "").strip()
+    month_i = _parse_int((raw_month or str(today.month)).strip()) or today.month
+    year_i = _parse_int((raw_year or str(today.year)).strip()) or today.year
+    month_i = max(1, min(12, month_i))
+    year_i = max(2020, min(2100, year_i))
 
-    if date:
-        qs = qs.filter(date=date)
+    if filter_date:
+        qs = qs.filter(date=filter_date)
+        period_label = filter_date
     else:
-        month_i = _parse_int(month)
-        year_i = _parse_int(year)
-        if month_i and year_i:
-            qs = qs.filter(date__year=year_i, date__month=month_i)
+        qs = qs.filter(date__year=year_i, date__month=month_i)
+        period_label = date(year_i, month_i, 1).strftime("%B %Y")
 
     if employee_id:
         qs = qs.filter(employee__employee_id__icontains=employee_id)
     if department:
         qs = qs.filter(employee__department__icontains=department)
+    if status in {
+        AttendanceStatus.PRESENT,
+        AttendanceStatus.HALF_DAY,
+        AttendanceStatus.ABSENT,
+        AttendanceStatus.FULL_DAY,
+        AttendanceStatus.ON_LEAVE,
+    }:
+        qs = qs.filter(status=status)
 
-    qs = qs.order_by("-date", "employee__employee_id")[:500]
-
-    return render(
+    records = list(qs.order_by("-date", "employee__employee_id")[:1000])
+    today_attendance_board = _today_employee_attendance_board(today) if filter_date == today.isoformat() else []
+    month_labels = [
+        (1, "January"),
+        (2, "February"),
+        (3, "March"),
+        (4, "April"),
+        (5, "May"),
+        (6, "June"),
+        (7, "July"),
+        (8, "August"),
+        (9, "September"),
+        (10, "October"),
+        (11, "November"),
+        (12, "December"),
+    ]
+    response = render(
         request,
         "admin/attendance/list.html",
         {
-            "records": qs,
+            "records": records,
+            "record_count": len(records),
+            "period_label": period_label,
+            "present_count": sum(1 for r in records if r.status in (AttendanceStatus.PRESENT, AttendanceStatus.FULL_DAY)),
+            "half_day_count": sum(1 for r in records if r.status == AttendanceStatus.HALF_DAY),
+            "absent_count": sum(1 for r in records if r.status == AttendanceStatus.ABSENT),
+            "on_leave_count": sum(1 for r in records if r.status == AttendanceStatus.ON_LEAVE),
+            "today_attendance_board": today_attendance_board,
+            "show_today_board": bool(today_attendance_board),
             "filters": {
-                "date": date,
+                "date": filter_date,
                 "employee_id": employee_id,
                 "department": department,
-                "month": month,
-                "year": year,
+                "month": str(month_i),
+                "year": str(year_i),
+                "status": status,
             },
             "month_choices": list(range(1, 13)),
+            "month_labels": month_labels,
+            "is_ceo_mode": request.user.role == UserRole.CEO,
+            "today": today,
         },
     )
+    return response
+
+
 
 
 def _parse_int(value: str) -> int | None:
@@ -915,7 +1308,7 @@ def _parse_int(value: str) -> int | None:
 
 
 def _attendance_export_queryset(request: HttpRequest):
-    qs = Attendance.objects.select_related("employee").all()
+    qs = Attendance.objects.select_related("employee").filter(employee__role=UserRole.EMPLOYEE)
     scope = request.GET.get("scope", "").strip().lower()
     date = request.GET.get("date", "").strip()
     employee_id = request.GET.get("employee_id", "").strip()
@@ -962,8 +1355,15 @@ def attendance_regularize(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = AttendanceRegularizeForm(request.POST)
         if form.is_valid():
-            att = form.save()
-            messages.success(request, f"Attendance regularized for {att.employee.employee_id} on {att.date}.")
+            try:
+                att = form.save()
+            except AttendanceError as e:
+                messages.error(request, str(e))
+                return render(request, "admin/attendance/regularize.html", {"form": form})
+            messages.success(
+                request,
+                f"Attendance regularized for {att.employee.employee_id} on {att.date}. Visible on all pages.",
+            )
             return redirect("admin_attendance_list")
     else:
         form = AttendanceRegularizeForm()
@@ -1012,19 +1412,27 @@ def regularization_review(request: HttpRequest, pk: int) -> HttpResponse:
 
         form = HrRegularizationApproveForm(request.POST)
         if form.is_valid():
-            regularize_attendance(
-                employee=reg_req.employee,
-                att_date=reg_req.date,
-                check_in=form.cleaned_data["check_in"],
-                check_out=None,
-            )
+            try:
+                regularize_attendance(
+                    employee=reg_req.employee,
+                    att_date=reg_req.date,
+                    check_in=form.cleaned_data["check_in"],
+                    check_out=None,
+                )
+            except AttendanceError as e:
+                messages.error(request, str(e))
+                return render(
+                    request,
+                    "admin/regularization/review.html",
+                    {"reg_req": reg_req, "form": form},
+                )
             reg_req.status = RegularizationStatus.APPROVED
             reg_req.hr_note = form.cleaned_data.get("hr_note", "")
             reg_req.reviewed_by = request.user
             reg_req.reviewed_at = timezone.now()
             reg_req.save()
-            messages.success(request, "Attendance marked and request approved.")
-            return redirect("regularization_request_list")
+            messages.success(request, "Attendance marked and request approved. Visible on all attendance pages.")
+            return redirect(f"{reverse('regularization_request_list')}?status=approved")
     else:
         form = HrRegularizationApproveForm()
 
@@ -1144,18 +1552,31 @@ def ceo_dashboard(request: HttpRequest) -> HttpResponse:
 
     total_employees = User.objects.filter(role=UserRole.EMPLOYEE).count()
     hr_count = User.objects.filter(role=UserRole.ADMIN).count()
-    present_today = Attendance.objects.filter(date=today).values("employee_id").distinct().count()
-    absent_today = max(
-        total_employees
-        - Attendance.objects.filter(date=today, employee__role=UserRole.EMPLOYEE)
-        .values("employee_id")
-        .distinct()
-        .count(),
-        0,
-    )
+    present_today = _count_present_today(today)
+    on_leave_today = _count_on_leave_today(today)
+    absent_today = max(total_employees - present_today - on_leave_today, 0)
     pending_regularizations = AttendanceRegularizationRequest.objects.filter(
         status=RegularizationStatus.PENDING
     ).count()
+    pending_leave_count = LeaveRequest.objects.filter(status=LeaveRequestStatus.PENDING).count()
+    pending_leave_requests = (
+        LeaveRequest.objects.filter(status=LeaveRequestStatus.PENDING)
+        .select_related("employee")
+        .order_by("-created_at")[:10]
+    )
+    pending_holiday_count = Holiday.objects.filter(approval_status=HolidayApprovalStatus.PENDING).count()
+    pending_holidays = Holiday.objects.filter(approval_status=HolidayApprovalStatus.PENDING).order_by("date")[:8]
+    if pending_leave_count:
+        messages.warning(
+            request,
+            f"{pending_leave_count} leave request(s) waiting for approval — open Leave Records to review.",
+        )
+    if pending_holiday_count:
+        messages.info(
+            request,
+            f"{pending_holiday_count} holiday entry(ies) need the other role's approval (HR + CEO).",
+        )
+    _notify_holiday_announcements(request)
     praise_letters_sent = PraiseLetter.objects.filter(issued_by=request.user).count()
     praise_letters_month = PraiseLetter.objects.filter(issued_at__date__gte=month_start).count()
     ceo_overrides = AttendanceRegularizationRequest.objects.filter(ceo_reviewed_by__isnull=False).count()
@@ -1180,6 +1601,12 @@ def ceo_dashboard(request: HttpRequest) -> HttpResponse:
     pending_regs = AttendanceRegularizationRequest.objects.filter(
         status=RegularizationStatus.PENDING
     ).select_related("employee")[:8]
+    today_attendance_board = _today_employee_attendance_board(today)
+    recent = (
+        Attendance.objects.select_related("employee")
+        .filter(date=today, employee__role=UserRole.EMPLOYEE)
+        .order_by("-check_in", "employee__employee_id")
+    )
 
     return render(
         request,
@@ -1190,7 +1617,12 @@ def ceo_dashboard(request: HttpRequest) -> HttpResponse:
             "hr_count": hr_count,
             "present_today": present_today,
             "absent_today": absent_today,
+            "on_leave_today": on_leave_today,
             "pending_regularizations": pending_regularizations,
+            "pending_leave_count": pending_leave_count,
+            "pending_leave_requests": pending_leave_requests,
+            "pending_holiday_count": pending_holiday_count,
+            "pending_holidays": pending_holidays,
             "praise_letters_sent": praise_letters_sent,
             "praise_letters_month": praise_letters_month,
             "ceo_overrides": ceo_overrides,
@@ -1198,6 +1630,8 @@ def ceo_dashboard(request: HttpRequest) -> HttpResponse:
             "recent_praise": recent_praise,
             "recent_overrides": recent_overrides,
             "pending_regs": pending_regs,
+            "today_attendance_board": today_attendance_board,
+            "recent": recent,
             "export_month": today.month,
             "export_year": today.year,
             "month_choices": list(range(1, 13)),
@@ -1249,9 +1683,15 @@ def _file_download_response(file_field, download_name: str | None = None) -> Fil
 
 
 @login_required
-@employee_required
 def praise_letter_download(request: HttpRequest, pk: int) -> HttpResponse:
-    letter = get_object_or_404(PraiseLetter, pk=pk, employee=request.user)
+    letter = get_object_or_404(PraiseLetter.objects.select_related("employee"), pk=pk)
+    # Owner, or HR/CEO viewing that employee's portal / praise list.
+    can_download = (
+        letter.employee_id == request.user.id
+        or request.user.role in {UserRole.ADMIN, UserRole.CEO}
+    )
+    if not can_download:
+        return HttpResponseBadRequest("You cannot download this praise letter.")
     if not letter.document:
         return HttpResponseBadRequest("No file attached to this praise letter.")
     return _file_download_response(letter.document, f"praise_{letter.employee.employee_id}_{letter.pk}.pdf")
@@ -1264,11 +1704,30 @@ def employee_attendance_records(request: HttpRequest) -> HttpResponse:
     try:
         month = int(request.GET.get("month", today.month))
         year = int(request.GET.get("year", today.year))
+        month = max(1, min(12, month))
+        year = max(2020, min(2100, year))
     except (TypeError, ValueError):
         month, year = today.month, today.year
-    records = Attendance.objects.filter(employee=request.user, date__year=year, date__month=month).order_by("-date")
-    half_days = records.filter(status=AttendanceStatus.HALF_DAY).count()
-    return render(
+
+    records = list(
+        Attendance.objects.filter(employee=request.user, date__year=year, date__month=month).order_by("-date")
+    )
+    half_days = sum(1 for r in records if r.status == AttendanceStatus.HALF_DAY)
+    month_labels = [
+        (1, "January"),
+        (2, "February"),
+        (3, "March"),
+        (4, "April"),
+        (5, "May"),
+        (6, "June"),
+        (7, "July"),
+        (8, "August"),
+        (9, "September"),
+        (10, "October"),
+        (11, "November"),
+        (12, "December"),
+    ]
+    response = render(
         request,
         "employee/attendance_records.html",
         {
@@ -1276,10 +1735,15 @@ def employee_attendance_records(request: HttpRequest) -> HttpResponse:
             "filter_month": month,
             "filter_year": year,
             "month_choices": list(range(1, 13)),
+            "month_labels": month_labels,
             "half_days": half_days,
+            "record_count": len(records),
             "period_label": date(year, month, 1).strftime("%B %Y"),
         },
     )
+    response["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response["Pragma"] = "no-cache"
+    return response
 
 
 @login_required
@@ -1298,7 +1762,10 @@ def leave_request_create(request: HttpRequest) -> HttpResponse:
             req = form.save(commit=False)
             req.employee = request.user
             req.save()
-            messages.success(request, "Leave request submitted to HR for approval.")
+            messages.success(
+                request,
+                "Leave request submitted. HR and CEO can see it under Leave Records and approve or reject it.",
+            )
             return redirect("employee_leave_requests")
     else:
         form = LeaveRequestForm()
@@ -1319,25 +1786,224 @@ def employee_payslip_download(request: HttpRequest, pk: int) -> HttpResponse:
     return _file_download_response(slip.document, f"payslip_{slip.employee.employee_id}_{slip.year}_{slip.month:02d}.pdf")
 
 
+def _hr_leave_queryset(request: HttpRequest):
+    """Shared filters for HR leave list + CSV export (live DB records)."""
+    # Default to pending so HR/CEO land on the approval queue.
+    status = request.GET.get("status", "pending").strip()
+    employee_q = request.GET.get("employee", "").strip()
+    department = request.GET.get("department", "").strip()
+    leave_type = request.GET.get("leave_type", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+
+    qs = LeaveRequest.objects.select_related("employee", "reviewed_by").order_by("-created_at")
+    if status in ("pending", "approved", "rejected"):
+        qs = qs.filter(status=status)
+    if employee_q:
+        qs = qs.filter(
+            Q(employee__employee_id__icontains=employee_q) | Q(employee__username__icontains=employee_q)
+        )
+    if department:
+        qs = qs.filter(employee__department__icontains=department)
+    if leave_type in {c.value for c in LeaveRequestType}:
+        qs = qs.filter(leave_type=leave_type)
+    if date_from:
+        try:
+            qs = qs.filter(end_date__gte=date.fromisoformat(date_from))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            qs = qs.filter(start_date__lte=date.fromisoformat(date_to))
+        except ValueError:
+            pass
+    return qs, {
+        "status_filter": status or "all",
+        "employee": employee_q,
+        "department": department,
+        "leave_type": leave_type,
+        "date_from": date_from,
+        "date_to": date_to,
+    }
+
+
 @login_required
 @admin_or_ceo_required
 def hr_leave_request_list(request: HttpRequest) -> HttpResponse:
-    status = request.GET.get("status", "pending")
-    qs = LeaveRequest.objects.select_related("employee").order_by("-created_at")
-    if status in ("pending", "approved", "rejected"):
-        qs = qs.filter(status=status)
-    return render(
+    qs, filters = _hr_leave_queryset(request)
+    counts = LeaveRequest.objects.aggregate(
+        total=Count("id"),
+        pending=Count("id", filter=Q(status=LeaveRequestStatus.PENDING)),
+        approved=Count("id", filter=Q(status=LeaveRequestStatus.APPROVED)),
+        rejected=Count("id", filter=Q(status=LeaveRequestStatus.REJECTED)),
+    )
+    departments = (
+        User.objects.filter(role=UserRole.EMPLOYEE)
+        .exclude(department="")
+        .values_list("department", flat=True)
+        .distinct()
+        .order_by("department")
+    )
+    response = render(
         request,
         "admin/leave/list.html",
-        {"leave_requests": qs[:200], "status_filter": status},
+        {
+            "leave_requests": qs[:500],
+            "counts": counts,
+            "leave_types": LeaveRequestType.choices,
+            "departments": departments,
+            "result_count": qs.count(),
+            **filters,
+        },
+    )
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@login_required
+@admin_or_ceo_required
+def hr_leave_export_csv(request: HttpRequest) -> HttpResponse:
+    import csv
+
+    qs, _filters = _hr_leave_queryset(request)
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="leave_applications.csv"'
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "Employee ID",
+            "Employee Name",
+            "Department",
+            "Leave Type",
+            "Start Date",
+            "End Date",
+            "Days",
+            "Reason",
+            "Status",
+            "HR Note",
+            "Reviewed By",
+            "Reviewed At",
+            "Submitted At",
+        ]
+    )
+    for lr in qs.iterator(chunk_size=200):
+        writer.writerow(
+            [
+                lr.employee.employee_id,
+                lr.employee.username,
+                lr.employee.department or "",
+                lr.get_leave_type_display(),
+                lr.start_date.isoformat(),
+                lr.end_date.isoformat(),
+                lr.duration_days,
+                lr.reason,
+                lr.get_status_display(),
+                lr.hr_note,
+                lr.reviewed_by.employee_id if lr.reviewed_by_id else "",
+                timezone.localtime(lr.reviewed_at).strftime("%Y-%m-%d %H:%M") if lr.reviewed_at else "",
+                timezone.localtime(lr.created_at).strftime("%Y-%m-%d %H:%M"),
+            ]
+        )
+    return response
+
+
+@login_required
+@admin_or_ceo_required
+def hr_leave_balances(request: HttpRequest) -> HttpResponse:
+    """Org-wide paid leave balances for the selected month (live)."""
+    today = timezone.localdate()
+    try:
+        month = int(request.GET.get("month", today.month))
+        year = int(request.GET.get("year", today.year))
+        month = max(1, min(12, month))
+        year = max(2020, min(2100, year))
+    except (TypeError, ValueError):
+        month, year = today.month, today.year
+
+    for_date = date(year, month, 1)
+    q = request.GET.get("q", "").strip()
+    employees = User.objects.filter(role=UserRole.EMPLOYEE, is_active=True).order_by("employee_id")
+    if q:
+        employees = employees.filter(
+            Q(employee_id__icontains=q) | Q(username__icontains=q) | Q(department__icontains=q)
+        )
+
+    rows = []
+    for emp in employees:
+        balance = ensure_monthly_leave_balance(employee=emp, for_date=for_date)
+        summary = get_leave_summary(employee=emp, for_date=for_date)
+        pending = LeaveRequest.objects.filter(employee=emp, status=LeaveRequestStatus.PENDING).count()
+        rows.append(
+            {
+                "employee": emp,
+                "balance": balance,
+                "absences": summary["absences_this_month"],
+                "on_leave_days": summary["on_leave_days"],
+                "pending": pending,
+            }
+        )
+
+    return render(
+        request,
+        "admin/leave/balances.html",
+        {
+            "rows": rows,
+            "month": month,
+            "year": year,
+            "month_label": for_date.strftime("%B %Y"),
+            "q": q,
+            "month_choices": list(range(1, 13)),
+        },
+    )
+
+
+@login_required
+@admin_or_ceo_required
+def hr_employee_leave_history(request: HttpRequest, pk: int) -> HttpResponse:
+    """Full leave application + balance record for one employee."""
+    employee = get_object_or_404(User, pk=pk, role=UserRole.EMPLOYEE)
+    today = timezone.localdate()
+    status = request.GET.get("status", "all").strip()
+    leave_qs = LeaveRequest.objects.filter(employee=employee).select_related("reviewed_by").order_by("-created_at")
+    if status in ("pending", "approved", "rejected"):
+        leave_qs = leave_qs.filter(status=status)
+
+    leave_summary = get_leave_summary(employee=employee, for_date=today)
+    balances = MonthlyLeaveBalance.objects.filter(employee=employee).order_by("-year", "-month")[:24]
+
+    return render(
+        request,
+        "admin/leave/employee_history.html",
+        {
+            "employee": employee,
+            "leave_requests": leave_qs,
+            "leave_summary": leave_summary,
+            "balances": balances,
+            "status_filter": status or "all",
+        },
     )
 
 
 @login_required
 @admin_or_ceo_required
 def hr_leave_request_review(request: HttpRequest, pk: int) -> HttpResponse:
-    leave_req = get_object_or_404(LeaveRequest.objects.select_related("employee"), pk=pk)
+    leave_req = get_object_or_404(
+        LeaveRequest.objects.select_related("employee", "reviewed_by"), pk=pk
+    )
+    today = timezone.localdate()
+    leave_summary = get_leave_summary(employee=leave_req.employee, for_date=today)
+    prior_requests = (
+        LeaveRequest.objects.filter(employee=leave_req.employee)
+        .exclude(pk=leave_req.pk)
+        .order_by("-created_at")[:12]
+    )
+    can_decide = leave_req.status == LeaveRequestStatus.PENDING
+
     if request.method == "POST":
+        if not can_decide:
+            messages.info(request, "This leave request is already processed. Record is kept for history.")
+            return redirect("hr_leave_request_review", pk=pk)
+
         action = request.POST.get("action")
         form = HrLeaveReviewForm(request.POST)
         if form.is_valid():
@@ -1346,21 +2012,35 @@ def hr_leave_request_review(request: HttpRequest, pk: int) -> HttpResponse:
             leave_req.reviewed_at = timezone.now()
             if action == "approve":
                 leave_req.status = LeaveRequestStatus.APPROVED
-                messages.success(request, "Leave request approved.")
+                leave_req.save()
+                days = apply_approved_leave_request(leave_req=leave_req)
+                messages.success(
+                    request,
+                    f"Leave approved for {days} day(s). Updated on employee portal, attendance, "
+                    f"and leave balance for {leave_req.employee.employee_id}.",
+                )
+                return redirect(f"{reverse('hr_leave_request_list')}?status=approved&employee={leave_req.employee.employee_id}")
             elif action == "reject":
                 leave_req.status = LeaveRequestStatus.REJECTED
-                messages.success(request, "Leave request rejected.")
+                leave_req.save()
+                messages.success(request, "Leave request rejected. Record retained in HR leave history.")
+                return redirect(f"{reverse('hr_leave_request_list')}?status=rejected&employee={leave_req.employee.employee_id}")
             else:
                 messages.error(request, "Invalid action.")
                 return redirect("hr_leave_request_review", pk=pk)
-            leave_req.save()
-            return redirect("hr_leave_request_list")
     else:
-        form = HrLeaveReviewForm()
+        form = HrLeaveReviewForm(initial={"hr_note": leave_req.hr_note})
+
     return render(
         request,
         "admin/leave/review.html",
-        {"leave_req": leave_req, "form": form},
+        {
+            "leave_req": leave_req,
+            "form": form,
+            "leave_summary": leave_summary,
+            "prior_requests": prior_requests,
+            "can_decide": can_decide,
+        },
     )
 
 
@@ -1369,6 +2049,18 @@ def hr_leave_request_review(request: HttpRequest, pk: int) -> HttpResponse:
 def hr_payslip_list(request: HttpRequest) -> HttpResponse:
     slips = PaySlip.objects.select_related("employee", "uploaded_by").order_by("-year", "-month")[:300]
     return render(request, "admin/payslips/list.html", {"payslips": slips})
+
+
+@login_required
+@admin_or_ceo_required
+def hr_payslip_download(request: HttpRequest, pk: int) -> HttpResponse:
+    slip = get_object_or_404(PaySlip.objects.select_related("employee"), pk=pk)
+    if not slip.document:
+        return HttpResponseBadRequest("No file attached to this pay slip.")
+    return _file_download_response(
+        slip.document,
+        f"payslip_{slip.employee.employee_id}_{slip.year}_{slip.month:02d}.pdf",
+    )
 
 
 @login_required

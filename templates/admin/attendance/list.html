@@ -1,169 +1,169 @@
 {% extends "base.html" %}
-
-{% block title %}Attendance{% endblock %}
-
-{% block content %}
-
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-
-    <h1 class="h5 mb-0">Attendance Records</h1>
-
-    <div class="d-flex flex-wrap gap-2">
-
-      <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin_dashboard' %}">Dashboard</a>
-
-      <a class="btn btn-outline-light btn-sm" href="{% url 'attendance_regularize' %}">Regularize</a>
-
-      <a class="btn btn-outline-success btn-sm" href="{% url 'export_attendance_csv' %}?month={{ filters.month }}&year={{ filters.year }}&employee_id={{ filters.employee_id }}&department={{ filters.department }}">Download Month CSV</a>
-
-      <a class="btn btn-success btn-sm" href="{% url 'export_attendance_csv' %}?scope=all&employee_id={{ filters.employee_id }}&department={{ filters.department }}">Download All CSV</a>
-
-      <a class="btn btn-outline-danger btn-sm" href="{% url 'export_attendance_pdf' %}?month={{ filters.month }}&year={{ filters.year }}&employee_id={{ filters.employee_id }}&department={{ filters.department }}">Export PDF</a>
-
-    </div>
-
+{% block title %}Attendance Records{% endblock %}
+{% block page_heading %}Attendance Records{% endblock %}
+{% block page_subheading %}
+  <p class="app-page-subtitle mb-0">{{ period_label }} · {{ record_count }} employee record{{ record_count|pluralize }} from live database{% if is_ceo_mode %} · CEO view{% endif %}</p>
+{% endblock %}
+{% block page_actions %}
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% if is_ceo_mode %}{% url 'ceo_dashboard' %}{% else %}{% url 'admin_dashboard' %}{% endif %}">Dashboard</a>
+    <a class="btn btn-primary btn-sm" href="{% url 'admin_attendance_list' %}">Today</a>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'admin_attendance_list' %}?month={{ today.month }}&year={{ today.year }}">This month</a>
+    {% if not is_ceo_mode %}
+      <a class="btn btn-outline-primary btn-sm" href="{% url 'attendance_regularize' %}">Regularize</a>
+    {% endif %}
+    <a class="btn btn-success btn-sm" href="{% url 'export_attendance_csv' %}?month={{ filters.month }}&year={{ filters.year }}&employee_id={{ filters.employee_id }}&department={{ filters.department }}&date={{ filters.date }}">CSV</a>
+    <a class="btn btn-outline-success btn-sm" href="{% url 'export_attendance_csv' %}?scope=all&employee_id={{ filters.employee_id }}&department={{ filters.department }}">All CSV</a>
+    <a class="btn btn-outline-danger btn-sm" href="{% url 'export_attendance_pdf' %}?month={{ filters.month }}&year={{ filters.year }}&employee_id={{ filters.employee_id }}&department={{ filters.department }}&date={{ filters.date }}">PDF</a>
   </div>
-
-
-
-  <form class="card card-body mb-3" method="get">
-
-    <div class="row g-2 align-items-end">
-
-      <div class="col-md-2">
-
-        <label class="form-label mb-1">Month</label>
-
-        <select class="form-select" name="month">
-
-          {% for m in month_choices %}
-
-            <option value="{{ m }}" {% if filters.month == m|stringformat:"s" %}selected{% endif %}>{{ m }}</option>
-
-          {% endfor %}
-
-        </select>
-
-      </div>
-
-      <div class="col-md-2">
-
-        <label class="form-label mb-1">Year</label>
-
-        <input class="form-control" type="number" name="year" value="{{ filters.year }}" min="2020" max="2100">
-
-      </div>
-
-      <div class="col-md-2">
-
-        <label class="form-label mb-1">Specific date</label>
-
-        <input class="form-control" type="date" name="date" value="{{ filters.date }}">
-
-      </div>
-
-      <div class="col-md-2">
-
-        <label class="form-label mb-1">Employee ID</label>
-
-        <input class="form-control" name="employee_id" value="{{ filters.employee_id }}" placeholder="e.g. E001">
-
-      </div>
-
-      <div class="col-md-2">
-
-        <label class="form-label mb-1">Department</label>
-
-        <input class="form-control" name="department" value="{{ filters.department }}" placeholder="e.g. Sales">
-
-      </div>
-
-      <div class="col-md-2">
-
-        <button class="btn btn-primary w-100" type="submit">Filter</button>
-
-      </div>
-
-    </div>
-
-    <div class="form-text mt-2">Leave date empty to view the full selected month. Use a specific date to filter one day.</div>
-
-  </form>
-
-
-
-  <div class="table-responsive">
-
-    <table class="table table-sm table-striped align-middle">
-
-      <thead>
-
-        <tr>
-
-          <th>Date</th>
-
-          <th>Emp ID</th>
-
-          <th>Name</th>
-
-          <th>Dept</th>
-
-          <th>Check In</th>
-
-          <th>Check Out</th>
-
-          <th>Hours</th>
-
-          <th>Overtime</th>
-
-          <th>Status</th>
-
-          <th>Late</th>
-
-        </tr>
-
-      </thead>
-
-      <tbody>
-
-        {% for r in records %}
-
-          <tr>
-
-            <td>{{ r.date }}</td>
-
-            <td>{{ r.employee.employee_id }}</td>
-
-            <td>{{ r.employee.username }}</td>
-
-            <td>{{ r.employee.department }}</td>
-
-            <td>{{ r.check_in|default:"-" }}</td>
-
-            <td>{{ r.check_out|default:"-" }}</td>
-
-            <td>{{ r.working_hours }}</td>
-
-            <td>{% if r.overtime_hours > 0 %}{{ r.overtime_hours }}{% else %}-{% endif %}</td>
-
-            <td>{{ r.status }}</td>
-
-            <td>{{ r.is_late|yesno:"Yes,No" }}</td>
-
-          </tr>
-
-        {% empty %}
-
-          <tr><td colspan="10" class="text-muted">No records.</td></tr>
-
-        {% endfor %}
-
-      </tbody>
-
-    </table>
-
-  </div>
-
 {% endblock %}
 
+{% block content %}
+  {% if show_today_board %}
+    {% include "includes/today_attendance_board.html" with today_attendance_board=today_attendance_board today=today title="All employees — today (includes not marked)" %}
+  {% endif %}
 
+  <div class="row g-3 mb-3">
+    <div class="col-4 col-md-3"><div class="mini-stat"><span>Records</span><strong>{{ record_count }}</strong></div></div>
+    <div class="col-6 col-md-3"><div class="mini-stat"><span>Present / Full</span><strong class="text-success">{{ present_count }}</strong></div></div>
+    <div class="col-6 col-md-3"><div class="mini-stat"><span>Half Day</span><strong class="text-warning">{{ half_day_count }}</strong></div></div>
+    <div class="col-6 col-md-3"><div class="mini-stat"><span>On Leave</span><strong class="text-info">{{ on_leave_count }}</strong></div></div>
+    <div class="col-6 col-md-3"><div class="mini-stat"><span>Absent</span><strong class="text-danger">{{ absent_count }}</strong></div></div>
+  </div>
+
+  <div class="content-card mb-3">
+    <form
+      id="hrAttendanceFilterForm"
+      class="row g-2 align-items-end"
+      method="get"
+      action="{% url 'admin_attendance_list' %}"
+      autocomplete="off"
+    >
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1" for="hrMonth">Month</label>
+        <select class="form-select" id="hrMonth" name="month">
+          {% for m, label in month_labels %}
+            <option value="{{ m }}" {% if filters.month == m|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1" for="hrYear">Year</label>
+        <input class="form-control" id="hrYear" type="number" name="year" value="{{ filters.year }}" min="2020" max="2100">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1" for="hrDate">Specific date</label>
+        <input class="form-control" id="hrDate" type="date" name="date" value="{{ filters.date }}">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1" for="hrEmp">Employee ID</label>
+        <input class="form-control" id="hrEmp" name="employee_id" value="{{ filters.employee_id }}" placeholder="e.g. 0006">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1" for="hrDept">Department</label>
+        <input class="form-control" id="hrDept" name="department" value="{{ filters.department }}" placeholder="e.g. Sales">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label mb-1" for="hrStatus">Status</label>
+        <select class="form-select" id="hrStatus" name="status">
+          <option value="" {% if not filters.status %}selected{% endif %}>All</option>
+          <option value="Present" {% if filters.status == "Present" %}selected{% endif %}>Present</option>
+          <option value="Full Day" {% if filters.status == "Full Day" %}selected{% endif %}>Full Day</option>
+          <option value="Half Day" {% if filters.status == "Half Day" %}selected{% endif %}>Half Day</option>
+          <option value="On Leave" {% if filters.status == "On Leave" %}selected{% endif %}>On Leave</option>
+          <option value="Absent" {% if filters.status == "Absent" %}selected{% endif %}>Absent</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <button class="btn btn-primary w-100" id="hrFilterBtn" type="submit">
+          <i class="bi bi-funnel me-1"></i> Filter
+        </button>
+      </div>
+      <div class="col-12 col-md-3">
+        <a class="btn btn-outline-secondary w-100" href="{% url 'admin_attendance_list' %}">Reset</a>
+      </div>
+    </form>
+    <div class="form-text mt-2">Default view is <strong>today</strong> so new check-ins/outs appear immediately. Clear the date and pick a month to view full-month history.</div>
+  </div>
+
+  <div class="content-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <strong>Results for {{ period_label }}</strong>
+      <span class="badge bg-primary">{{ record_count }} record{{ record_count|pluralize }}</span>
+    </div>
+
+    <div class="table-responsive d-none d-lg-block">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Emp ID</th>
+            <th>Name</th>
+            <th>Dept</th>
+            <th>Check In</th>
+            <th>Check Out</th>
+            <th>Hours</th>
+            <th>OT</th>
+            <th>Status</th>
+            <th>Late</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+            <tr class="{% if r.status == 'Half Day' %}table-warning{% endif %}">
+              <td>{{ r.date|date:"M j, Y" }}</td>
+              <td>{{ r.employee.employee_id }}</td>
+              <td>{{ r.employee.username }}</td>
+              <td>{{ r.employee.department|default:"—" }}</td>
+              <td>{% if r.check_in %}{{ r.check_in|date:"g:i A" }}{% else %}—{% endif %}</td>
+              <td>{% if r.check_out %}{{ r.check_out|date:"g:i A" }}{% else %}—{% endif %}</td>
+              <td>{{ r.working_hours }}</td>
+              <td>{% if r.overtime_hours > 0 %}{{ r.overtime_hours }}{% else %}—{% endif %}</td>
+              {% include "includes/attendance_status_cell.html" with r=r %}
+              <td>{% if r.is_late %}<span class="text-warning">Yes</span>{% else %}No{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="10" class="text-muted text-center py-4">No attendance records match these filters.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="data-card-list d-lg-none">
+      {% for r in records %}
+        <article class="data-item-card attendance-record-card {% if r.status == 'Half Day' %}is-half{% elif r.status == 'Absent' %}is-absent{% endif %}">
+          <div class="attendance-record-top">
+            <div>
+              <div class="attendance-record-date">{{ r.date|date:"D, M j, Y" }} · {{ r.employee.employee_id }}</div>
+              <div class="data-item-title">{{ r.employee.username }}</div>
+              <div class="data-item-meta">{{ r.employee.department|default:"No department" }}</div>
+            </div>
+            {% include "includes/attendance_status_badge.html" with r=r %}
+          </div>
+          <div class="attendance-record-grid">
+            <div><span class="label">Check-in</span><strong>{% if r.check_in %}{{ r.check_in|date:"g:i A" }}{% else %}—{% endif %}</strong></div>
+            <div><span class="label">Check-out</span><strong>{% if r.check_out %}{{ r.check_out|date:"g:i A" }}{% else %}—{% endif %}</strong></div>
+            <div><span class="label">Hours</span><strong>{{ r.working_hours }}{% if r.overtime_hours > 0 %} · OT {{ r.overtime_hours }}{% endif %}</strong></div>
+            <div><span class="label">Late</span><strong>{% if r.is_late %}Yes{% else %}No{% endif %}</strong></div>
+          </div>
+        </article>
+      {% empty %}
+        <p class="text-muted text-center mb-0 py-3">No attendance records match these filters.</p>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const form = document.getElementById("hrAttendanceFilterForm");
+    const btn = document.getElementById("hrFilterBtn");
+    if (!form || !btn) return;
+    form.addEventListener("submit", function () {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Filtering...';
+    });
+  })();
+</script>
+{% endblock %}

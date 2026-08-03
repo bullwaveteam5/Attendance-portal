@@ -9,12 +9,17 @@
           <div><span class="label">Check-out</span><strong>{{ my_attendance_record.check_out|default:"—" }}</strong></div>
           <div><span class="label">Hours</span><strong>{{ my_attendance_record.working_hours }}</strong></div>
         </div>
+        {% if my_on_leave %}
+          <p class="text-info small mb-0 mt-2">Approved leave today — check-in/out is disabled.</p>
+        {% endif %}
       {% else %}
         <p class="text-muted mb-0">No attendance marked yet today.</p>
       {% endif %}
     </div>
     <div class="col-12 col-md-6">
-      {% include "includes/attendance_check_buttons.html" with my_can_check_in=my_can_check_in my_can_check_out=my_can_check_out %}
+      {% if not my_on_leave %}
+        {% include "includes/attendance_check_buttons.html" with my_can_check_in=my_can_check_in my_can_check_out=my_can_check_out %}
+      {% endif %}
     </div>
   </div>
 </div>

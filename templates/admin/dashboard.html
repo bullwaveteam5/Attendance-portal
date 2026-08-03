@@ -11,7 +11,53 @@
       <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Total employees</div><div class="h4 mb-0">{{ total_employees }}</div></div></div></div>
       <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Present today</div><div class="h4 mb-0">{{ present_today }}</div></div></div></div>
       <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Half day today</div><div class="h4 mb-0">{{ half_day_today }}</div></div></div></div>
-      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Overtime (hrs)</div><div class="h4 mb-0">{{ overtime_today_total }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending leave</div><div class="h4 mb-0 text-warning">{{ pending_leave_count }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">On leave today</div><div class="h4 mb-0 text-info">{{ on_leave_today }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending holidays</div><div class="h4 mb-0">{{ pending_holiday_count }}</div></div></div></div>
+    </div>
+
+    {% if pending_holiday_count %}
+    <div class="content-card mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="content-card-title mb-0">Pending Holiday Approvals (needs HR + CEO)</h2>
+        <a class="btn btn-outline-warning btn-sm" href="{% url 'holiday_list' %}?status=pending">Review</a>
+      </div>
+      <ul class="mb-0 small">
+        {% for h in pending_holidays %}
+          <li class="mb-1">{{ h.date|date:"M j, Y" }} — {{ h.name }}
+            · HR {% if h.hr_approved %}✓{% else %}waiting{% endif %}
+            · CEO {% if h.ceo_approved %}✓{% else %}waiting{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% include "includes/today_attendance_board.html" with today_attendance_board=today_attendance_board today=today title="Live Employee Check-in / Check-out" %}
+
+    <div class="content-card mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="content-card-title mb-0">Pending Leave Approvals</h2>
+        <a class="btn btn-warning btn-sm" href="{% url 'hr_leave_request_list' %}?status=pending">Review all</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-portal table-sm align-middle mb-0">
+          <thead><tr><th>Employee</th><th>Dates</th><th>Type</th><th>Reason</th><th></th></tr></thead>
+          <tbody>
+            {% for lr in pending_leave_requests %}
+              <tr>
+                <td>{{ lr.employee.employee_id }} — {{ lr.employee.username }}</td>
+                <td class="small">{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</td>
+                <td>{{ lr.get_leave_type_display }}</td>
+                <td class="text-muted small">{{ lr.reason|truncatechars:50 }}</td>
+                <td class="text-end"><a class="btn btn-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">Approve / Reject</a></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-muted">No pending leave requests.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
     <div class="content-card">
       <h2 class="content-card-title">Download Attendance (CSV)</h2>
@@ -50,17 +96,39 @@
             <h2 class="content-card-title mb-0">Holidays ({{ holiday_month }})</h2>
             <a class="btn btn-outline-light btn-sm" href="{% url 'holiday_list' %}">Manage</a>
           </div>
-          <div class="table-responsive">
+          <div class="table-responsive d-none d-sm-block">
             <table class="table table-portal table-sm align-middle mb-0">
-              <thead><tr><th>Date</th><th>Name</th><th>CEO Notice</th></tr></thead>
+              <thead><tr><th>Date</th><th>Name</th><th>Status</th><th>CEO Notice</th></tr></thead>
               <tbody>
                 {% for h in upcoming_holidays %}
-                  <tr><td>{{ h.date }}</td><td>{{ h.name }}</td><td class="text-muted small">{{ h.ceo_message|truncatechars:35|default:"-" }}</td></tr>
+                  <tr>
+                    <td>{{ h.date|date:"M j" }}</td>
+                    <td>{{ h.name }}</td>
+                    <td>
+                      {% if h.approval_status == "approved" %}<span class="badge bg-success">Approved</span>
+                      {% elif h.approval_status == "rejected" %}<span class="badge bg-danger">Rejected</span>
+                      {% else %}<span class="badge bg-warning text-dark">Pending</span>{% endif %}
+                    </td>
+                    <td class="text-muted small">{{ h.ceo_message|truncatechars:35|default:"-" }}</td>
+                  </tr>
                 {% empty %}
-                  <tr><td colspan="3" class="text-muted">No holidays.</td></tr>
+                  <tr><td colspan="4" class="text-muted">No holidays this month.</td></tr>
                 {% endfor %}
               </tbody>
             </table>
+          </div>
+          <div class="holiday-card-list d-sm-none">
+            {% for h in upcoming_holidays %}
+              <article class="holiday-item-card">
+                <div class="holiday-item-date">{{ h.date|date:"D, M j" }}</div>
+                <h3 class="holiday-item-name">{{ h.name }}</h3>
+                {% if h.approval_status == "approved" %}<span class="badge bg-success">Approved</span>
+                {% elif h.approval_status == "rejected" %}<span class="badge bg-danger">Rejected</span>
+                {% else %}<span class="badge bg-warning text-dark">Pending</span>{% endif %}
+              </article>
+            {% empty %}
+              <p class="text-muted mb-0">No holidays this month.</p>
+            {% endfor %}
           </div>
         </div>
       </div>

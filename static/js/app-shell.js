@@ -4,28 +4,46 @@
   const backdrop = document.getElementById("sidebarBackdrop");
   const panelsRoot = document.querySelector(".app-panels");
   const pageTitle = document.querySelector(".app-page-title");
+  const pageSubtitle = document.querySelector(".app-page-subtitle");
 
-  const panelTitles = {
-    attendance: "Mark Attendance",
-    holidays: "Holidays",
-    "extra-days": "Extra Working Days",
-    leaves: "Paid Leave",
-    regularization: "Regularization",
-    praise: "Praise Letters",
-    history: "Attendance History",
-    overview: "Overview",
-    "my-attendance": "Mark Attendance",
-    activity: "Today's Activity",
-    pending: "Pending Reviews",
-    overrides: "HR Overrides",
+  const panelMeta = {
+    attendance: {
+      title: "Mark Attendance",
+      subtitle: "Check in and check out for today",
+    },
+    holidays: {
+      title: "Holidays",
+      subtitle: "Official company holidays approved by HR and CEO",
+    },
+    "extra-days": {
+      title: "Extra Working Days",
+      subtitle: "Approved extra working days for this month",
+    },
+    leaves: {
+      title: "Paid Leave Balance",
+      subtitle: "Live leave balance and deductions from the server",
+    },
+    regularization: {
+      title: "Regularization",
+      subtitle: "Your regularization requests and status",
+    },
+    praise: {
+      title: "Praise Letters",
+      subtitle: "CEO recognition letters",
+    },
+    history: {
+      title: "Quick Attendance History",
+      subtitle: "Recent attendance fetched from your records",
+    },
+    overview: { title: "Overview", subtitle: "" },
+    "my-attendance": { title: "Mark Attendance", subtitle: "Your own attendance actions" },
+    activity: { title: "Today's Activity", subtitle: "" },
+    pending: { title: "Pending Reviews", subtitle: "" },
+    overrides: { title: "HR Overrides", subtitle: "" },
   };
 
   function closeSidebar() {
     document.body.classList.remove("sidebar-open");
-  }
-
-  function openSidebar() {
-    document.body.classList.add("sidebar-open");
   }
 
   if (toggle) {
@@ -41,21 +59,31 @@
   function showPanel(target) {
     if (!panelsRoot || !target) return;
 
-    panelsRoot.querySelectorAll(".app-panel").forEach(function (panel) {
-      panel.classList.remove("active");
-    });
-
     const panel = document.getElementById("panel-" + target);
-    if (panel) {
-      panel.classList.add("active");
-    }
+    if (!panel) return;
+
+    panelsRoot.querySelectorAll(".app-panel").forEach(function (p) {
+      p.classList.remove("active");
+    });
+    panel.classList.add("active");
 
     document.querySelectorAll(".sidebar-link[data-panel-target]").forEach(function (link) {
       link.classList.toggle("active", link.dataset.panelTarget === target);
     });
 
-    if (pageTitle && panelTitles[target]) {
-      pageTitle.textContent = panelTitles[target];
+    // When a panel is open, clear active state on full-page sidebar links
+    document.querySelectorAll(".sidebar-nav > a.sidebar-link").forEach(function (link) {
+      if (!link.dataset.panelTarget) {
+        link.classList.remove("active");
+      }
+    });
+
+    const meta = panelMeta[target];
+    if (pageTitle && meta) {
+      pageTitle.textContent = meta.title;
+    }
+    if (pageSubtitle && meta && meta.subtitle) {
+      pageSubtitle.textContent = meta.subtitle;
     }
 
     if (window.innerWidth < 992) {
@@ -65,6 +93,9 @@
     if (history.replaceState) {
       history.replaceState(null, "", "#" + target);
     }
+
+    // Keep focused content in view on mobile after panel switch
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   document.querySelectorAll("[data-panel-target]").forEach(function (el) {
@@ -93,4 +124,11 @@
       if (h) showPanel(h);
     });
   }
+
+  // Close sidebar after navigating to a full page link on mobile
+  document.querySelectorAll(".sidebar-nav a.sidebar-link").forEach(function (link) {
+    link.addEventListener("click", function () {
+      if (window.innerWidth < 992) closeSidebar();
+    });
+  });
 })();

@@ -104,6 +104,7 @@ class AttendanceStatus(models.TextChoices):
     HALF_DAY = "Half Day", "Half Day"
     ABSENT = "Absent", "Absent"
     FULL_DAY = "Full Day", "Full Day"
+    ON_LEAVE = "On Leave", "On Leave"
 
 
 class Attendance(models.Model):
@@ -291,6 +292,12 @@ class LeaveRequest(models.Model):
 
     def __str__(self) -> str:
         return f"{self.employee} {self.start_date}–{self.end_date} ({self.status})"
+
+    @property
+    def duration_days(self) -> int:
+        if not self.start_date or not self.end_date:
+            return 0
+        return (self.end_date - self.start_date).days + 1
 
 
 def payslip_upload_to(instance, filename: str) -> str:

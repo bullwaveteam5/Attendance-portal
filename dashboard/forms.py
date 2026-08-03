@@ -15,12 +15,13 @@ from attendance.models import Attendance, AttendanceRegularizationRequest, Regul
 class EmployeeUpsertForm(forms.ModelForm):
     password = forms.CharField(
         required=False,
-        widget=forms.PasswordInput(attrs={"class": "form-control"}),
+        widget=forms.PasswordInput(attrs={"class": "form-control", "autocomplete": "new-password"}),
         help_text="Leave blank to keep the current password.",
     )
 
     class Meta:
         model = User
+        # password is handled separately so a blank update never overwrites the hash
         fields = [
             "employee_id",
             "username",
@@ -30,24 +31,50 @@ class EmployeeUpsertForm(forms.ModelForm):
             "date_of_birth",
             "anniversary_date",
             "is_active",
-            "password",
         ]
         widgets = {
             "employee_id": forms.TextInput(attrs={"class": "form-control"}),
             "username": forms.TextInput(attrs={"class": "form-control"}),
             "email": forms.EmailInput(attrs={"class": "form-control"}),
             "department": forms.TextInput(attrs={"class": "form-control"}),
-            "role": forms.Select(attrs={"class": "form-select"}, choices=UserRole.choices),
-            "date_of_birth": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
-            "anniversary_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "role": forms.Select(attrs={"class": "form-select"}),
+            "date_of_birth": forms.DateInput(attrs={"class": "form-control", "type": "date"}, format="%Y-%m-%d"),
+            "anniversary_date": forms.DateInput(
+                attrs={"class": "form-control", "type": "date"}, format="%Y-%m-%d"
+            ),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date_of_birth"].input_formats = ["%Y-%m-%d"]
+        self.fields["anniversary_date"].input_formats = ["%Y-%m-%d"]
+        # New employees need a password; updates may leave it blank.
+        if not self.instance.pk:
+            self.fields["password"].required = True
+            self.fields["password"].help_text = "Initial login password for this employee."
+            self.fields["role"].initial = UserRole.EMPLOYEE
+        else:
+            # Employee records stay as employees — hide role to avoid accidental changes.
+            self.fields["role"].widget = forms.HiddenInput()
+            self.fields["role"].initial = UserRole.EMPLOYEE
+
+    def clean_password(self):
+        password = self.cleaned_data.get("password") or ""
+        if not self.instance.pk and not password:
+            raise forms.ValidationError("Password is required when creating an employee.")
+        return password
 
     def save(self, commit=True):
         user: User = super().save(commit=False)
         pwd = self.cleaned_data.get("password")
         if pwd:
             user.set_password(pwd)
+        # Keep Django admin access aligned with privileged roles
+        if user.role in {UserRole.ADMIN, UserRole.CEO, UserRole.DIRECTOR}:
+            user.is_staff = True
+        elif user.role == UserRole.EMPLOYEE:
+            user.is_staff = False
         if commit:
             user.save()
         return user
@@ -58,7 +85,7 @@ class HolidayForm(forms.ModelForm):
         model = Holiday
         fields = ["date", "name", "event_type", "is_optional", "ceo_message"]
         widgets = {
-            "date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "date": forms.DateInput(attrs={"class": "form-control", "type": "date"}, format="%Y-%m-%d"),
             "name": forms.TextInput(attrs={"class": "form-control"}),
             "event_type": forms.Select(attrs={"class": "form-select"}),
             "is_optional": forms.CheckboxInput(attrs={"class": "form-check-input"}),
@@ -73,38 +100,36 @@ class HolidayForm(forms.ModelForm):
 
     def __init__(self, *args, ceo_mode: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["date"].input_formats = ["%Y-%m-%d"]
         if not ceo_mode:
             self.fields.pop("ceo_message", None)
         else:
             self.fields["ceo_message"].help_text = (
-                "Employees and HR will receive a popup notification when you save with a message."
+                "Staff see the notice only after both CEO and HR approve this holiday."
             )
 
     def save(self, commit=True, *, announced_by=None):
         holiday: Holiday = super().save(commit=False)
-        message = (self.cleaned_data.get("ceo_message") or "").strip()
-        if announced_by and message:
+        if announced_by:
             holiday.announced_by = announced_by
             holiday.announced_at = timezone.now()
-            holiday.announcement_active = True
-        elif not message:
+        # Visibility / popup only after dual approval (handled in views).
+        if holiday.approval_status != "approved":
             holiday.announcement_active = False
         if commit:
             holiday.save()
-            if announced_by and message:
-                HolidayAnnouncementRead.objects.filter(holiday=holiday).delete()
         return holiday
 
 
 class CeoHolidayAnnounceForm(forms.ModelForm):
-    """Quick CEO form to announce a holiday or extra working day."""
+    """Quick CEO form to propose a holiday or extra working day (needs HR approval too)."""
 
     class Meta:
         model = Holiday
         fields = ["date", "name", "event_type", "ceo_message"]
         widgets = {
-            "date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
-            "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Diwali / Saturday duty"}),
+            "date": forms.DateInput(attrs={"class": "form-control", "type": "date"}, format="%Y-%m-%d"),
+            "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Diwali / company holiday"}),
             "event_type": forms.Select(attrs={"class": "form-select"}),
             "ceo_message": forms.Textarea(
                 attrs={
@@ -115,17 +140,19 @@ class CeoHolidayAnnounceForm(forms.ModelForm):
             ),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date"].input_formats = ["%Y-%m-%d"]
+
     def save(self, commit=True, *, announced_by=None):
         holiday: Holiday = super().save(commit=False)
         holiday.is_optional = False
+        holiday.announcement_active = False
         if announced_by:
             holiday.announced_by = announced_by
             holiday.announced_at = timezone.now()
-            holiday.announcement_active = bool((holiday.ceo_message or "").strip())
         if commit:
             holiday.save()
-            if holiday.announcement_active:
-                HolidayAnnouncementRead.objects.filter(holiday=holiday).delete()
         return holiday
 
 
@@ -199,10 +226,15 @@ class LeaveRequestForm(forms.ModelForm):
         fields = ["leave_type", "start_date", "end_date", "reason"]
         widgets = {
             "leave_type": forms.Select(attrs={"class": "form-select"}),
-            "start_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
-            "end_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "start_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}, format="%Y-%m-%d"),
+            "end_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}, format="%Y-%m-%d"),
             "reason": forms.Textarea(attrs={"class": "form-control", "rows": 4, "placeholder": "Reason for leave..."}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["start_date"].input_formats = ["%Y-%m-%d"]
+        self.fields["end_date"].input_formats = ["%Y-%m-%d"]
 
     def clean(self):
         cleaned = super().clean()
@@ -285,7 +317,7 @@ class EmployeeRegularizationRequestForm(forms.ModelForm):
         model = AttendanceRegularizationRequest
         fields = ["date", "description"]
         widgets = {
-            "date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "date": forms.DateInput(attrs={"class": "form-control", "type": "date"}, format="%Y-%m-%d"),
             "description": forms.Textarea(
                 attrs={
                     "class": "form-control",
@@ -298,6 +330,7 @@ class EmployeeRegularizationRequestForm(forms.ModelForm):
     def __init__(self, *args, employee=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.employee = employee
+        self.fields["date"].input_formats = ["%Y-%m-%d"]
 
     def clean_date(self):
         att_date = self.cleaned_data["date"]

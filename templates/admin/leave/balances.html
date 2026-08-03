@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Leave Balances{% endblock %}
+{% block page_heading %}Employee Leave Balances{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Paid leave balances for {{ month_label }} — live from the database</p>{% endblock %}
+{% block page_actions %}
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'hr_leave_request_list' %}">← Leave applications</a>
+{% endblock %}
+
+{% block content %}
+  <div class="content-card mb-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-4 col-md-2">
+        <label class="form-label small mb-1">Month</label>
+        <select class="form-select form-select-sm" name="month">
+          {% for m in month_choices %}
+            <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-4 col-md-2">
+        <label class="form-label small mb-1">Year</label>
+        <input class="form-control form-control-sm" type="number" name="year" value="{{ year }}" min="2020" max="2100" />
+      </div>
+      <div class="col-8 col-md-4">
+        <label class="form-label small mb-1">Search</label>
+        <input class="form-control form-control-sm" name="q" value="{{ q }}" placeholder="ID, name, department" />
+      </div>
+      <div class="col-4 col-md-2">
+        <button class="btn btn-primary btn-sm w-100" type="submit">Load</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="content-card">
+    <div class="table-responsive d-none d-md-block">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Department</th>
+            <th>Allocation</th>
+            <th>Carried</th>
+            <th>Used</th>
+            <th>Remaining</th>
+            <th>Absences</th>
+            <th>On leave</th>
+            <th>Pending apps</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>
+                <strong>{{ row.employee.employee_id }}</strong>
+                <div class="small text-muted">{{ row.employee.username }}</div>
+              </td>
+              <td class="text-muted small">{{ row.employee.department|default:"—" }}</td>
+              <td>{{ row.balance.monthly_allocation }}</td>
+              <td>{{ row.balance.carried_forward }}</td>
+              <td class="text-warning">{{ row.balance.used_leaves }}</td>
+              <td class="text-success fw-semibold">{{ row.balance.remaining }}</td>
+              <td>{{ row.absences }}</td>
+              <td>{{ row.on_leave_days }}</td>
+              <td>{% if row.pending %}<span class="badge bg-warning text-dark">{{ row.pending }}</span>{% else %}0{% endif %}</td>
+              <td class="text-end text-nowrap">
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_employee_leave_history' row.employee.pk %}">History</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="10" class="text-muted text-center py-4">No employees found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="data-card-list d-md-none">
+      {% for row in rows %}
+        <article class="data-item-card">
+          <div class="data-item-title">{{ row.employee.username }}</div>
+          <div class="data-item-meta mb-2">{{ row.employee.employee_id }} · {{ row.employee.department|default:"No dept" }}</div>
+          <div class="small">Remaining: <strong class="text-success">{{ row.balance.remaining }}</strong> · Used: {{ row.balance.used_leaves }} · Pending: {{ row.pending }}</div>
+          <a class="btn btn-outline-primary btn-sm mt-2 w-100" href="{% url 'hr_employee_leave_history' row.employee.pk %}">View leave history</a>
+        </article>
+      {% empty %}
+        <p class="text-muted text-center mb-0 py-3">No employees found.</p>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

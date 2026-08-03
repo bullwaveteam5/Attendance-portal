@@ -66,6 +66,8 @@ urlpatterns = [
 
     path("hr/employees/<int:pk>/edit/", views.employee_update, name="employee_update"),
 
+    path("hr/employees/<int:pk>/record/", views.hr_employee_record, name="hr_employee_record"),
+
     path("hr/employees/<int:pk>/delete/", views.employee_delete, name="employee_delete"),
 
     path("hr/employees/<int:pk>/portal/", views.hr_employee_portal, name="hr_employee_portal"),
@@ -77,6 +79,8 @@ urlpatterns = [
     path("hr/holidays/add/", views.holiday_create, name="holiday_create"),
 
     path("hr/holidays/<int:pk>/edit/", views.holiday_update, name="holiday_update"),
+
+    path("hr/holidays/<int:pk>/approve/", views.holiday_approve, name="holiday_approve"),
 
     path("hr/holidays/<int:pk>/delete/", views.holiday_delete, name="holiday_delete"),
 
@@ -90,9 +94,17 @@ urlpatterns = [
 
     path("hr/leave/", views.hr_leave_request_list, name="hr_leave_request_list"),
 
+    path("hr/leave/export/csv/", views.hr_leave_export_csv, name="hr_leave_export_csv"),
+
+    path("hr/leave/balances/", views.hr_leave_balances, name="hr_leave_balances"),
+
+    path("hr/leave/employee/<int:pk>/", views.hr_employee_leave_history, name="hr_employee_leave_history"),
+
     path("hr/leave/<int:pk>/review/", views.hr_leave_request_review, name="hr_leave_request_review"),
 
     path("hr/payslips/", views.hr_payslip_list, name="hr_payslip_list"),
+
+    path("hr/payslips/<int:pk>/download/", views.hr_payslip_download, name="hr_payslip_download"),
 
     path("hr/payslips/upload/", views.hr_payslip_upload, name="hr_payslip_upload"),
 

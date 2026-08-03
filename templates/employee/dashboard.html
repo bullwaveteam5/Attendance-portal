@@ -13,7 +13,7 @@
         <div class="text-muted small">Mark your check-in and check-out for today</div>
       </div>
       {% if record %}
-        <span class="attendance-status-pill {% if record.is_late %}late{% elif record.status == 'Absent' %}absent{% endif %}">{{ record.status }}</span>
+        <span class="attendance-status-pill {% if record.status == 'Half Day' %}late{% elif record.status == 'Absent' %}absent{% elif record.is_late %}late{% endif %}">{{ record.status }}</span>
       {% endif %}
     </div>
     <div class="row g-3">
@@ -22,13 +22,18 @@
           <h2 class="content-card-title">Today Status</h2>
           {% if record %}
             <div class="status-grid">
-              <div><span class="label">Check-in</span><strong>{{ record.check_in|default:"—" }}</strong></div>
-              <div><span class="label">Check-out</span><strong>{{ record.check_out|default:"—" }}</strong></div>
+              <div><span class="label">Check-in</span><strong>{% if record.check_in %}{{ record.check_in|date:"M j, Y, g:i A" }}{% else %}—{% endif %}</strong></div>
+              <div><span class="label">Check-out</span><strong>{% if record.check_out %}{{ record.check_out|date:"M j, Y, g:i A" }}{% else %}—{% endif %}</strong></div>
               <div><span class="label">Working hours</span><strong>{{ record.working_hours }}</strong></div>
               <div><span class="label">Status</span>
-                {% if record.status == "Half Day" or record.is_half_day_checkin %}
+                {% if record.status == "Half Day" %}
                   <strong class="text-warning">Half Day</strong>
                   {% if record.is_half_day_checkin %}<div class="text-muted small">After 12:30 PM</div>{% endif %}
+                {% elif record.status == "Absent" %}
+                  <strong class="text-danger">Absent</strong>
+                  {% if record.check_in and record.working_hours < 4 %}
+                    <div class="text-muted small">Under 4 working hours</div>
+                  {% endif %}
                 {% else %}
                   <strong>{{ record.status }}</strong>
                 {% endif %}
@@ -44,15 +49,19 @@
           <h2 class="content-card-title">Quick Actions</h2>
           {% if portal_mode != "hr_view" and portal_mode != "ceo_view" %}
             {% include "includes/office_verification_notice.html" %}
-            {% include "includes/attendance_check_buttons.html" with my_can_check_in=can_check_in my_can_check_out=can_check_out button_class="px-4" %}
-            {% if not office_verification_required %}
-            <p class="text-muted small mb-3">
-              Check-in after <strong>12:30 PM</strong> = half day. Check-out after <strong>6:00 PM</strong> = overtime.
-            </p>
+            {% if on_leave_today %}
+              <div class="alert alert-info mb-0 py-2 px-3">On approved leave today — check-in/out disabled.</div>
+            {% else %}
+              {% include "includes/attendance_check_buttons.html" with my_can_check_in=can_check_in my_can_check_out=can_check_out button_class="px-4" %}
+              {% if not office_verification_required %}
+              <p class="text-muted small mb-3">
+                Check-in after <strong>12:30 PM</strong> = half day. Check-out after <strong>6:00 PM</strong> = overtime.
+              </p>
+              {% endif %}
+              <a class="btn btn-outline-warning btn-sm" href="{% url 'request_regularization' %}">
+                <i class="bi bi-pencil-square me-1"></i> Request Regularization
+              </a>
             {% endif %}
-            <a class="btn btn-outline-warning btn-sm" href="{% url 'request_regularization' %}">
-              <i class="bi bi-pencil-square me-1"></i> Request Regularization
-            </a>
           {% else %}
             <div class="alert alert-info mb-0">Read-only view — attendance cannot be changed here.</div>
           {% endif %}
@@ -63,39 +72,74 @@
 
   <div class="app-panel" id="panel-holidays">
     <div class="panel-toolbar">
-      <strong>Holidays — {{ holiday_month }}</strong>
+      <div>
+        <strong>Holidays — {{ holiday_month }}</strong>
+        <div class="text-muted small">Official company holidays approved by HR and CEO</div>
+      </div>
     </div>
-    <div class="content-card">
+
+    <div class="content-card d-none d-md-block">
       <div class="table-responsive">
         <table class="table table-portal table-sm align-middle mb-0">
           <thead><tr><th>Date</th><th>Name</th><th>Type</th><th>CEO Notice</th></tr></thead>
           <tbody>
             {% for h in upcoming_holidays %}
               <tr>
-                <td>{{ h.date }}</td>
+                <td>{{ h.date|date:"M j, Y" }}</td>
                 <td>{{ h.name }}</td>
                 <td>{% if h.is_optional %}<span class="badge bg-secondary">Optional</span>{% else %}<span class="badge bg-primary">Holiday</span>{% endif %}</td>
                 <td class="text-muted small">{{ h.ceo_message|truncatechars:50|default:"—" }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="4" class="text-muted text-center py-4">No holidays scheduled this month.</td></tr>
+              <tr><td colspan="4" class="text-muted text-center py-4">No approved holidays this month.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+
+    <div class="holiday-card-list d-md-none">
+      {% for h in upcoming_holidays %}
+        <article class="holiday-item-card">
+          <div class="holiday-item-top">
+            <div>
+              <div class="holiday-item-date">{{ h.date|date:"D, M j, Y" }}</div>
+              <h3 class="holiday-item-name">{{ h.name }}</h3>
+            </div>
+            {% if h.is_optional %}
+              <span class="badge bg-secondary">Optional</span>
+            {% else %}
+              <span class="badge bg-primary">Holiday</span>
+            {% endif %}
+          </div>
+          {% if h.ceo_message %}
+            <p class="holiday-item-notice mb-0"><span class="label">CEO Notice</span>{{ h.ceo_message }}</p>
+          {% else %}
+            <p class="text-muted small mb-0">No CEO notice for this holiday.</p>
+          {% endif %}
+        </article>
+      {% empty %}
+        <div class="content-card text-muted text-center py-4 mb-0">No approved holidays this month.</div>
+      {% endfor %}
+    </div>
   </div>
 
   <div class="app-panel" id="panel-extra-days">
-    <div class="panel-toolbar"><strong>Extra Working Days — {{ holiday_month }}</strong></div>
-    <div class="content-card">
+    <div class="panel-toolbar">
+      <div>
+        <strong>Extra Working Days — {{ holiday_month }}</strong>
+        <div class="text-muted small">Approved by HR and CEO</div>
+      </div>
+    </div>
+
+    <div class="content-card d-none d-md-block">
       <div class="table-responsive">
         <table class="table table-portal table-sm align-middle mb-0">
           <thead><tr><th>Date</th><th>Reason</th><th>CEO Notice</th></tr></thead>
           <tbody>
             {% for h in extra_working_days %}
               <tr>
-                <td>{{ h.date }}</td>
+                <td>{{ h.date|date:"M j, Y" }}</td>
                 <td>{{ h.name }}</td>
                 <td class="text-muted small">{{ h.ceo_message|truncatechars:60|default:"—" }}</td>
               </tr>
@@ -106,49 +150,160 @@
         </table>
       </div>
     </div>
+
+    <div class="holiday-card-list d-md-none">
+      {% for h in extra_working_days %}
+        <article class="holiday-item-card">
+          <div class="holiday-item-top">
+            <div>
+              <div class="holiday-item-date">{{ h.date|date:"D, M j, Y" }}</div>
+              <h3 class="holiday-item-name">{{ h.name }}</h3>
+            </div>
+            <span class="badge bg-warning text-dark">Extra Working</span>
+          </div>
+          {% if h.ceo_message %}
+            <p class="holiday-item-notice mb-0"><span class="label">CEO Notice</span>{{ h.ceo_message }}</p>
+          {% endif %}
+        </article>
+      {% empty %}
+        <div class="content-card text-muted text-center py-4 mb-0">No extra working days scheduled.</div>
+      {% endfor %}
+    </div>
   </div>
 
   <div class="app-panel" id="panel-leaves">
-    <div class="panel-toolbar"><strong>Paid Leave — {{ leave_summary.month_label }}</strong></div>
-    <div class="content-card">
-      <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3"><div class="mini-stat"><span>Allocation</span><strong>{{ leave_summary.balance.monthly_allocation }}</strong></div></div>
-        <div class="col-6 col-md-3"><div class="mini-stat"><span>Carried</span><strong>{{ leave_summary.balance.carried_forward }}</strong></div></div>
-        <div class="col-6 col-md-3"><div class="mini-stat"><span>Used</span><strong class="text-warning">{{ leave_summary.balance.used_leaves }}</strong></div></div>
-        <div class="col-6 col-md-3"><div class="mini-stat"><span>Remaining</span><strong class="text-success">{{ leave_summary.balance.remaining }}</strong></div></div>
+    <div class="panel-toolbar">
+      <div>
+        <strong>Paid Leave — {{ leave_summary.month_label }}</strong>
+        <div class="text-muted small">Live balance from approved leave &amp; absences this month</div>
       </div>
-      <div class="table-responsive">
-        <table class="table table-portal table-sm align-middle mb-0">
-          <thead><tr><th>Date</th><th>Reason</th></tr></thead>
-          <tbody>
+      {% if portal_mode == "self" %}
+        <a class="btn btn-success btn-sm" href="{% url 'leave_request_create' %}"><i class="bi bi-plus-lg me-1"></i>Request Leave</a>
+      {% endif %}
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-lg-3"><div class="mini-stat"><span>Allocation</span><strong>{{ leave_summary.balance.monthly_allocation }}</strong></div></div>
+      <div class="col-6 col-lg-3"><div class="mini-stat"><span>Carried</span><strong>{{ leave_summary.balance.carried_forward }}</strong></div></div>
+      <div class="col-6 col-lg-3"><div class="mini-stat"><span>Used</span><strong class="text-warning">{{ leave_summary.balance.used_leaves }}</strong></div></div>
+      <div class="col-6 col-lg-3"><div class="mini-stat"><span>Remaining</span><strong class="text-success">{{ leave_summary.balance.remaining }}</strong></div></div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-12 col-lg-6">
+        <div class="content-card h-100">
+          <h2 class="content-card-title">Leave Deductions</h2>
+          <p class="text-muted small mb-3">
+            Absences: <strong>{{ leave_summary.absences_this_month }}</strong>
+            · On leave: <strong>{{ leave_summary.on_leave_days }}</strong>
+          </p>
+          <div class="table-responsive d-none d-md-block">
+            <table class="table table-portal table-sm align-middle mb-0">
+              <thead><tr><th>Date</th><th>Reason</th></tr></thead>
+              <tbody>
+                {% for d in leave_summary.deductions %}
+                  <tr>
+                    <td>{{ d.date|date:"M j, Y" }}</td>
+                    <td class="text-muted">
+                      {% if d.attendance.status == "On Leave" %}Approved leave — 1 paid leave deducted
+                      {% else %}Absent — 1 paid leave deducted{% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-muted text-center py-3">No deductions this month.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="data-card-list d-md-none">
             {% for d in leave_summary.deductions %}
-              <tr><td>{{ d.date }}</td><td class="text-muted">Absent — 1 paid leave deducted</td></tr>
+              <article class="data-item-card">
+                <div class="data-item-title">{{ d.date|date:"D, M j, Y" }}</div>
+                <div class="data-item-meta">
+                  {% if d.attendance.status == "On Leave" %}Approved leave — 1 paid leave deducted
+                  {% else %}Absent — 1 paid leave deducted{% endif %}
+                </div>
+              </article>
             {% empty %}
-              <tr><td colspan="2" class="text-muted text-center py-3">No deductions this month.</td></tr>
+              <p class="text-muted mb-0">No deductions this month.</p>
             {% endfor %}
-          </tbody>
-        </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="content-card h-100">
+          <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+            <h2 class="content-card-title mb-0">My Leave Requests</h2>
+            {% if portal_mode == "self" %}
+              <a class="btn btn-outline-primary btn-sm" href="{% url 'employee_leave_requests' %}">View all</a>
+            {% endif %}
+          </div>
+          <div class="table-responsive d-none d-md-block">
+            <table class="table table-portal table-sm align-middle mb-0">
+              <thead><tr><th>Dates</th><th>Type</th><th>Status</th></tr></thead>
+              <tbody>
+                {% for lr in my_leave_requests %}
+                  <tr>
+                    <td>{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</td>
+                    <td>{{ lr.get_leave_type_display }}</td>
+                    <td>
+                      {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                      {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                      {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-muted text-center py-3">No leave requests yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="data-card-list d-md-none">
+            {% for lr in my_leave_requests %}
+              <article class="data-item-card">
+                <div class="d-flex justify-content-between gap-2">
+                  <div>
+                    <div class="data-item-title">{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</div>
+                    <div class="data-item-meta">{{ lr.get_leave_type_display }}</div>
+                  </div>
+                  {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                  {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                  {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+                </div>
+              </article>
+            {% empty %}
+              <p class="text-muted mb-0">No leave requests yet.</p>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="app-panel" id="panel-regularization">
     <div class="panel-toolbar">
-      <strong>Regularization Requests</strong>
+      <div>
+        <strong>Regularization Requests</strong>
+        <div class="text-muted small">Forgot check-in? Submit a request for HR review</div>
+      </div>
       {% if portal_mode != "hr_view" and portal_mode != "ceo_view" %}
         <a class="btn btn-success btn-sm" href="{% url 'request_regularization' %}"><i class="bi bi-plus-lg me-1"></i>New Request</a>
       {% endif %}
     </div>
     <div class="content-card">
-      <div class="table-responsive">
+      <div class="table-responsive d-none d-md-block">
         <table class="table table-portal table-sm align-middle mb-0">
           <thead><tr><th>Date</th><th>Reason</th><th>Status</th></tr></thead>
           <tbody>
             {% for r in my_regularizations %}
               <tr>
-                <td>{{ r.date }}</td>
-                <td class="text-muted">{{ r.description|truncatechars:60 }}</td>
-                <td><span class="badge bg-light text-dark border">{{ r.status }}</span></td>
+                <td>{{ r.date|date:"M j, Y" }}</td>
+                <td class="text-muted">{{ r.description|truncatechars:80 }}</td>
+                <td>
+                  {% if r.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                  {% elif r.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                  {% else %}<span class="badge bg-danger">{{ r.status|title }}</span>{% endif %}
+                </td>
               </tr>
             {% empty %}
               <tr><td colspan="3" class="text-muted text-center py-4">No requests yet.</td></tr>
@@ -156,12 +311,30 @@
           </tbody>
         </table>
       </div>
+      <div class="data-card-list d-md-none">
+        {% for r in my_regularizations %}
+          <article class="data-item-card">
+            <div class="d-flex justify-content-between gap-2 mb-1">
+              <div class="data-item-title">{{ r.date|date:"D, M j, Y" }}</div>
+              {% if r.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+              {% elif r.status == 'approved' %}<span class="badge bg-success">Approved</span>
+              {% else %}<span class="badge bg-danger">{{ r.status|title }}</span>{% endif %}
+            </div>
+            <div class="data-item-meta">{{ r.description|truncatechars:120 }}</div>
+          </article>
+        {% empty %}
+          <p class="text-muted text-center mb-0 py-3">No requests yet.</p>
+        {% endfor %}
+      </div>
     </div>
   </div>
 
   <div class="app-panel" id="panel-praise">
     <div class="panel-toolbar">
-      <strong>CEO Praise Letters</strong>
+      <div>
+        <strong>CEO Praise Letters</strong>
+        <div class="text-muted small">Recognition from the CEO</div>
+      </div>
       {% if portal_mode == "self" %}
         <a class="btn btn-outline-primary btn-sm" href="{% url 'employee_praise_letters' %}">View & Download</a>
       {% endif %}
@@ -170,7 +343,7 @@
       {% if praise_letters %}
         {% for p in praise_letters|slice:":5" %}
           <div class="praise-letter-item mb-3">
-            <div class="fw-semibold text-dark">{{ p.title }}</div>
+            <div class="fw-semibold">{{ p.title }}</div>
             <div class="small text-muted mb-1">From CEO · {{ p.issued_at|date:"M d, Y" }}</div>
             {% if p.message %}<p class="mb-2 small text-muted">{{ p.message|truncatechars:200 }}</p>{% endif %}
             {% if p.document %}
@@ -190,17 +363,17 @@
       <a class="btn btn-outline-primary btn-sm" href="{% url 'employee_attendance_records' %}">Full Records</a>
     </div>
     <div class="content-card">
-      <div class="table-responsive">
+      <div class="table-responsive d-none d-md-block">
         <table class="table table-portal table-sm align-middle mb-0">
           <thead>
             <tr><th>Date</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Status</th><th>Late</th></tr>
           </thead>
           <tbody>
             {% for r in history %}
-              <tr class="{% if r.is_half_day_checkin %}table-warning{% endif %}">
-                <td>{{ r.date }}</td>
-                <td>{{ r.check_in|default:"—" }}</td>
-                <td>{{ r.check_out|default:"—" }}</td>
+              <tr class="{% if r.status == 'Half Day' %}table-warning{% endif %}">
+                <td>{{ r.date|date:"M j, Y" }}</td>
+                <td>{% if r.check_in %}{{ r.check_in|date:"g:i A" }}{% else %}—{% endif %}</td>
+                <td>{% if r.check_out %}{{ r.check_out|date:"g:i A" }}{% else %}—{% endif %}</td>
                 <td>{{ r.working_hours }}</td>
                 {% include "includes/attendance_status_cell.html" with r=r %}
                 <td>{{ r.is_late|yesno:"Yes,No" }}</td>
@@ -210,6 +383,25 @@
             {% endfor %}
           </tbody>
         </table>
+      </div>
+      <div class="attendance-record-list d-md-none">
+        {% for r in history %}
+          <article class="attendance-record-card {% if r.status == 'Half Day' %}is-half{% elif r.status == 'Absent' %}is-absent{% endif %}">
+            <div class="attendance-record-top">
+              <div>
+                <div class="attendance-record-date">{{ r.date|date:"D, M j" }}</div>
+                <div class="attendance-record-hours">{{ r.working_hours }} hrs</div>
+              </div>
+              {% include "includes/attendance_status_badge.html" with r=r %}
+            </div>
+            <div class="attendance-record-grid">
+              <div><span class="label">Check-in</span><strong>{% if r.check_in %}{{ r.check_in|date:"g:i A" }}{% else %}—{% endif %}</strong></div>
+              <div><span class="label">Check-out</span><strong>{% if r.check_out %}{{ r.check_out|date:"g:i A" }}{% else %}—{% endif %}</strong></div>
+            </div>
+          </article>
+        {% empty %}
+          <div class="text-muted text-center py-3">No records found.</div>
+        {% endfor %}
       </div>
     </div>
   </div>

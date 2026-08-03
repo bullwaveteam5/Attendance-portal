@@ -1,172 +1,203 @@
 {% extends "base.html" %}
-
 {% block title %}Holidays & Calendar{% endblock %}
-
-{% block content %}
-
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-
-    <div>
-
-      <h1 class="h5 mb-0">Holidays & Extra Working Days</h1>
-
-      <div class="text-muted small">{{ month_label }}</div>
-
-    </div>
-
-    <div class="d-flex flex-wrap gap-2">
-
-      {% if is_ceo_mode %}
-
-        <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">CEO Home</a>
-
-        <a class="btn btn-success btn-sm" href="{% url 'ceo_holiday_announce' %}">Send CEO Notice</a>
-
-      {% else %}
-
-        <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin_dashboard' %}">Dashboard</a>
-
-      {% endif %}
-
-      <a class="btn btn-primary btn-sm" href="{% url 'holiday_create' %}">Add Entry</a>
-
-    </div>
-
+{% block page_heading %}Holidays & Extra Working Days{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">{{ month_label }} · HR + CEO approval required</p>{% endblock %}
+{% block page_actions %}
+  <div class="d-flex flex-wrap gap-2">
+    {% if is_ceo_mode %}
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'ceo_dashboard' %}">CEO Home</a>
+      <a class="btn btn-success btn-sm" href="{% url 'ceo_holiday_announce' %}">Send CEO Notice</a>
+    {% else %}
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin_dashboard' %}">Dashboard</a>
+    {% endif %}
+    <a class="btn btn-primary btn-sm" href="{% url 'holiday_create' %}">Add Entry</a>
   </div>
-
-
-
-  <form class="card card-body mb-3" method="get">
-
-    <div class="row g-2 align-items-end">
-
-      <div class="col-md-3">
-
-        <label class="form-label mb-1">Month</label>
-
-        <select class="form-select" name="month">
-          <option value="1" {% if month == 1 %}selected{% endif %}>January</option>
-
-          <option value="2" {% if month == 2 %}selected{% endif %}>February</option>
-
-          <option value="3" {% if month == 3 %}selected{% endif %}>March</option>
-
-          <option value="4" {% if month == 4 %}selected{% endif %}>April</option>
-
-          <option value="5" {% if month == 5 %}selected{% endif %}>May</option>
-
-          <option value="6" {% if month == 6 %}selected{% endif %}>June</option>
-
-          <option value="7" {% if month == 7 %}selected{% endif %}>July</option>
-
-          <option value="8" {% if month == 8 %}selected{% endif %}>August</option>
-
-          <option value="9" {% if month == 9 %}selected{% endif %}>September</option>
-
-          <option value="10" {% if month == 10 %}selected{% endif %}>October</option>
-
-          <option value="11" {% if month == 11 %}selected{% endif %}>November</option>
-
-          <option value="12" {% if month == 12 %}selected{% endif %}>December</option>
-
-        </select>
-
-      </div>
-
-      <div class="col-md-3">
-
-        <label class="form-label mb-1">Year</label>
-
-        <input class="form-control" name="year" value="{{ year }}" />
-
-      </div>
-
-      <div class="col-md-3">
-
-        <button class="btn btn-primary w-100" type="submit">Filter</button>
-
-      </div>
-
-    </div>
-
-  </form>
-
-
-
-  <div class="table-responsive">
-
-    <table class="table table-sm table-striped align-middle">
-
-      <thead>
-
-        <tr>
-
-          <th>Date</th>
-
-          <th>Name</th>
-
-          <th>Type</th>
-
-          <th>Optional</th>
-
-          <th>CEO Message</th>
-
-          <th></th>
-
-        </tr>
-
-      </thead>
-
-      <tbody>
-
-        {% for h in holidays %}
-
-          <tr>
-
-            <td>{{ h.date }}</td>
-
-            <td>{{ h.name }}</td>
-
-            <td>
-
-              {% if h.event_type == "extra_working" %}
-
-                <span class="badge bg-warning text-dark">Extra Working Day</span>
-
-              {% else %}
-
-                <span class="badge bg-info">Holiday</span>
-
-              {% endif %}
-
-            </td>
-
-            <td>{{ h.is_optional|yesno:"Yes,No" }}</td>
-
-            <td class="text-muted small">{{ h.ceo_message|truncatechars:50|default:"-" }}</td>
-
-            <td class="text-end">
-
-              <a class="btn btn-outline-primary btn-sm" href="{% url 'holiday_update' h.pk %}">Edit</a>
-
-              <a class="btn btn-outline-danger btn-sm" href="{% url 'holiday_delete' h.pk %}">Delete</a>
-
-            </td>
-
-          </tr>
-
-        {% empty %}
-
-          <tr><td colspan="6" class="text-muted">No calendar entries for this month.</td></tr>
-
-        {% endfor %}
-
-      </tbody>
-
-    </table>
-
-  </div>
-
 {% endblock %}
 
+{% block content %}
+  {% if pending_count %}
+    <div class="alert alert-warning border-0 mb-3">
+      <strong>{{ pending_count }}</strong> holiday entr{{ pending_count|pluralize:"y,ies" }} waiting for HR/CEO approval.
+      Staff only see holidays after <strong>both</strong> approve.
+    </div>
+  {% endif %}
 
+  <form class="content-card holiday-filter-card mb-3" method="get">
+    <div class="row g-2 align-items-end">
+      <div class="col-6 col-md-3">
+        <label class="form-label mb-1">Month</label>
+        <select class="form-select" name="month">
+          <option value="1" {% if month == 1 %}selected{% endif %}>January</option>
+          <option value="2" {% if month == 2 %}selected{% endif %}>February</option>
+          <option value="3" {% if month == 3 %}selected{% endif %}>March</option>
+          <option value="4" {% if month == 4 %}selected{% endif %}>April</option>
+          <option value="5" {% if month == 5 %}selected{% endif %}>May</option>
+          <option value="6" {% if month == 6 %}selected{% endif %}>June</option>
+          <option value="7" {% if month == 7 %}selected{% endif %}>July</option>
+          <option value="8" {% if month == 8 %}selected{% endif %}>August</option>
+          <option value="9" {% if month == 9 %}selected{% endif %}>September</option>
+          <option value="10" {% if month == 10 %}selected{% endif %}>October</option>
+          <option value="11" {% if month == 11 %}selected{% endif %}>November</option>
+          <option value="12" {% if month == 12 %}selected{% endif %}>December</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label mb-1">Year</label>
+        <input class="form-control" name="year" value="{{ year }}" inputmode="numeric" />
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label mb-1">Approval</label>
+        <select class="form-select" name="status">
+          <option value="" {% if not status_filter %}selected{% endif %}>All</option>
+          <option value="pending" {% if status_filter == "pending" %}selected{% endif %}>Pending</option>
+          <option value="approved" {% if status_filter == "approved" %}selected{% endif %}>Approved</option>
+          <option value="rejected" {% if status_filter == "rejected" %}selected{% endif %}>Rejected</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <button class="btn btn-primary w-100" type="submit">Filter</button>
+      </div>
+    </div>
+  </form>
+
+  {# Desktop / tablet table #}
+  <div class="content-card d-none d-md-block">
+    <div class="table-responsive">
+      <table class="table table-portal table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Approval</th>
+            <th>CEO Notice</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in holidays %}
+            <tr>
+              <td>{{ h.date|date:"M j, Y" }}</td>
+              <td>{{ h.name }}</td>
+              <td>
+                {% if h.event_type == "extra_working" %}
+                  <span class="badge bg-warning text-dark">Extra Working</span>
+                {% else %}
+                  <span class="badge bg-primary">Holiday</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if h.approval_status == "approved" %}
+                  <span class="badge bg-success">Approved</span>
+                {% elif h.approval_status == "rejected" %}
+                  <span class="badge bg-danger">Rejected</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">Pending</span>
+                {% endif %}
+                <div class="small text-muted mt-1">
+                  HR: {% if h.hr_approved %}✓{% else %}—{% endif %}
+                  · CEO: {% if h.ceo_approved %}✓{% else %}—{% endif %}
+                </div>
+              </td>
+              <td class="text-muted small">{{ h.ceo_message|truncatechars:40|default:"—" }}</td>
+              <td class="text-end text-nowrap">
+                {% if h.approval_status == "pending" %}
+                  {% if is_hr_mode and not h.hr_approved %}
+                    <form method="post" action="{% url 'holiday_approve' h.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="approve" />
+                      <button class="btn btn-success btn-sm" type="submit">HR Approve</button>
+                    </form>
+                    <form method="post" action="{% url 'holiday_approve' h.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="reject" />
+                      <button class="btn btn-outline-danger btn-sm" type="submit">Reject</button>
+                    </form>
+                  {% elif is_ceo_mode and not h.ceo_approved %}
+                    <form method="post" action="{% url 'holiday_approve' h.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="approve" />
+                      <button class="btn btn-success btn-sm" type="submit">CEO Approve</button>
+                    </form>
+                    <form method="post" action="{% url 'holiday_approve' h.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="reject" />
+                      <button class="btn btn-outline-danger btn-sm" type="submit">Reject</button>
+                    </form>
+                  {% endif %}
+                {% endif %}
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'holiday_update' h.pk %}">Edit</a>
+                <a class="btn btn-outline-danger btn-sm" href="{% url 'holiday_delete' h.pk %}">Delete</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="text-muted text-center py-4">No calendar entries for this month.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# Mobile cards #}
+  <div class="holiday-card-list d-md-none">
+    {% for h in holidays %}
+      <article class="holiday-item-card">
+        <div class="holiday-item-top">
+          <div>
+            <div class="holiday-item-date">{{ h.date|date:"D, M j, Y" }}</div>
+            <h3 class="holiday-item-name">{{ h.name }}</h3>
+          </div>
+          {% if h.approval_status == "approved" %}
+            <span class="badge bg-success">Approved</span>
+          {% elif h.approval_status == "rejected" %}
+            <span class="badge bg-danger">Rejected</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% endif %}
+        </div>
+        <div class="holiday-item-meta">
+          {% if h.event_type == "extra_working" %}
+            <span class="badge bg-warning text-dark">Extra Working</span>
+          {% else %}
+            <span class="badge bg-primary">Holiday</span>
+          {% endif %}
+          <span class="text-muted small">HR {% if h.hr_approved %}✓{% else %}pending{% endif %} · CEO {% if h.ceo_approved %}✓{% else %}pending{% endif %}</span>
+        </div>
+        {% if h.ceo_message %}
+          <p class="holiday-item-notice mb-2">{{ h.ceo_message|truncatechars:120 }}</p>
+        {% endif %}
+        <div class="holiday-item-actions">
+          {% if h.approval_status == "pending" %}
+            {% if is_hr_mode and not h.hr_approved %}
+              <form method="post" action="{% url 'holiday_approve' h.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve" />
+                <button class="btn btn-success btn-sm w-100" type="submit">HR Approve</button>
+              </form>
+              <form method="post" action="{% url 'holiday_approve' h.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject" />
+                <button class="btn btn-outline-danger btn-sm w-100" type="submit">Reject</button>
+              </form>
+            {% elif is_ceo_mode and not h.ceo_approved %}
+              <form method="post" action="{% url 'holiday_approve' h.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve" />
+                <button class="btn btn-success btn-sm w-100" type="submit">CEO Approve</button>
+              </form>
+              <form method="post" action="{% url 'holiday_approve' h.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject" />
+                <button class="btn btn-outline-danger btn-sm w-100" type="submit">Reject</button>
+              </form>
+            {% endif %}
+          {% endif %}
+          <a class="btn btn-outline-primary btn-sm" href="{% url 'holiday_update' h.pk %}">Edit</a>
+          <a class="btn btn-outline-secondary btn-sm" href="{% url 'holiday_delete' h.pk %}">Delete</a>
+        </div>
+      </article>
+    {% empty %}
+      <div class="content-card text-muted text-center py-4">No calendar entries for this month.</div>
+    {% endfor %}
+  </div>
+{% endblock %}

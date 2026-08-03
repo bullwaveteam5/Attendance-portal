@@ -1,0 +1,13 @@
+{% if r.status == "Half Day" %}
+  <span class="badge bg-warning text-dark">Half Day</span>
+{% elif r.status == "Full Day" %}
+  <span class="badge bg-success">Full Day</span>
+{% elif r.status == "Present" %}
+  <span class="badge bg-primary">Present</span>
+{% elif r.status == "On Leave" %}
+  <span class="badge bg-info text-dark">On Leave</span>
+{% elif r.status == "Absent" %}
+  <span class="badge bg-danger">Absent</span>
+{% else %}
+  <span class="badge bg-secondary">{{ r.status }}</span>
+{% endif %}

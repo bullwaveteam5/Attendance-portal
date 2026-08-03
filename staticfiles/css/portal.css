@@ -732,3 +732,71 @@ body.portal-layout.sidebar-open .app-sidebar {
 .portal-layout .table-portal tbody tr.table-warning:hover {
   background: #ffefcc !important;
 }
+
+/* Responsive data cards — light portal theme */
+.portal-layout .data-item-card,
+.portal-layout .holiday-item-card,
+.portal-layout .attendance-record-card {
+  background: #fff;
+  border: 1px solid var(--portal-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.portal-layout .holiday-item-name,
+.portal-layout .data-item-title,
+.portal-layout .attendance-record-hours {
+  color: var(--portal-heading);
+}
+
+.portal-layout .holiday-item-date,
+.portal-layout .data-item-meta,
+.portal-layout .attendance-record-date {
+  color: var(--portal-text-muted);
+}
+
+.portal-layout .mini-stat {
+  background: #fff;
+  border: 1px solid var(--portal-border);
+}
+
+.portal-layout .mini-stat span {
+  color: var(--portal-text-muted);
+}
+
+.portal-layout .mini-stat strong {
+  color: var(--portal-heading);
+}
+
+.portal-layout .panel-toolbar strong {
+  color: var(--portal-heading);
+}
+
+.portal-layout .status-grid strong {
+  color: var(--portal-heading);
+}
+
+.portal-layout .content-card-title {
+  color: var(--portal-heading);
+}
+
+@media (max-width: 991px) {
+  .portal-layout .app-page-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .portal-layout .panel-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .portal-layout .panel-toolbar .btn,
+  .portal-layout .app-page-actions .btn {
+    width: 100%;
+  }
+
+  .portal-layout .table-responsive {
+    margin: 0 -0.25rem;
+  }
+}

@@ -1,38 +1,67 @@
 {% extends "base.html" %}
 {% block title %}Attendance Records{% endblock %}
 {% block page_heading %}Attendance Records{% endblock %}
-{% block page_subheading %}<p class="app-page-subtitle mb-0">{{ period_label }} · Half days: <strong>{{ half_days }}</strong> (check-in after 12:30 PM)</p>{% endblock %}
+{% block page_subheading %}
+  <p class="app-page-subtitle mb-0">
+    {{ period_label }} · {{ record_count }} record{{ record_count|pluralize }} · Half days: <strong>{{ half_days }}</strong>
+  </p>
+{% endblock %}
 {% block page_actions %}
-  <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_dashboard' %}">Dashboard</a>
+  <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_dashboard' %}#attendance">Dashboard</a>
 {% endblock %}
 
 {% block content %}
-  <div class="panel-toolbar">
-    <form class="row g-2 align-items-end" method="get">
+  <div class="content-card filter-card mb-3">
+    <form
+      id="attendanceFilterForm"
+      class="attendance-filter-form row g-2 align-items-end"
+      method="get"
+      action="{% url 'employee_attendance_records' %}"
+      autocomplete="off"
+    >
       <div class="col-6 col-md-3">
-        <label class="form-label mb-1">Month</label>
-        <select class="form-select form-select-sm" name="month">
-          {% for m in month_choices %}
-            <option value="{{ m }}" {% if filter_month == m %}selected{% endif %}>{{ m }}</option>
+        <label class="form-label mb-1" for="filterMonth">Month</label>
+        <select class="form-select" id="filterMonth" name="month" required>
+          {% for m, label in month_labels %}
+            <option value="{{ m }}" {% if filter_month == m %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="col-6 col-md-3">
-        <label class="form-label mb-1">Year</label>
-        <input class="form-control form-control-sm" type="number" name="year" value="{{ filter_year }}" min="2020" max="2100">
+        <label class="form-label mb-1" for="filterYear">Year</label>
+        <input
+          class="form-control"
+          id="filterYear"
+          type="number"
+          name="year"
+          value="{{ filter_year }}"
+          min="2020"
+          max="2100"
+          required
+        >
       </div>
-      <div class="col-12 col-md-4">
-        <button class="btn btn-primary btn-sm" type="submit">View Records</button>
+      <div class="col-12 col-md-3">
+        <button class="btn btn-primary w-100" id="viewRecordsBtn" type="submit">
+          <i class="bi bi-search me-1"></i> View Records
+        </button>
       </div>
     </form>
   </div>
 
-  <div class="content-card">
-    <div class="alert alert-info small mb-3">
+  <div class="content-card" id="recordsResult">
+    <div class="alert alert-info small mb-3 mb-md-4">
       <i class="bi bi-info-circle me-1"></i>
-      Employees who check in at <strong>12:30 PM or later</strong> are marked as <strong>Half Day</strong>.
+      Check-in at <strong>12:30 PM or later</strong> counts as <strong>Half Day</strong> when working hours are enough.
+      Very short presence (under 4 hours) is marked <strong>Absent</strong>.
     </div>
-    <div class="table-responsive">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <strong class="text-body">Results for {{ period_label }}</strong>
+      <span class="badge bg-primary">{{ record_count }} record{{ record_count|pluralize }}</span>
+    </div>
+
+    {# Desktop / tablet table #}
+    <div class="table-responsive d-none d-md-block">
       <table class="table table-portal table-sm align-middle mb-0">
         <thead>
           <tr>
@@ -48,10 +77,10 @@
         </thead>
         <tbody>
           {% for r in records %}
-            <tr class="{% if r.is_half_day_checkin %}table-warning{% endif %}">
-              <td>{{ r.date }}</td>
-              <td>{{ r.check_in|localtime|date:"g:i A"|default:"—" }}</td>
-              <td>{{ r.check_out|localtime|date:"g:i A"|default:"—" }}</td>
+            <tr class="{% if r.status == 'Half Day' %}table-warning{% endif %}">
+              <td>{{ r.date|date:"M j, Y" }}</td>
+              <td>{% if r.check_in %}{{ r.check_in|date:"g:i A" }}{% else %}—{% endif %}</td>
+              <td>{% if r.check_out %}{{ r.check_out|date:"g:i A" }}{% else %}—{% endif %}</td>
               <td>{{ r.working_hours }}</td>
               <td>{% if r.overtime_hours > 0 %}{{ r.overtime_hours }}{% else %}—{% endif %}</td>
               {% include "includes/attendance_status_cell.html" with r=r %}
@@ -66,5 +95,58 @@
         </tbody>
       </table>
     </div>
+
+    {# Mobile cards #}
+    <div class="attendance-record-list d-md-none">
+      {% for r in records %}
+        <article class="attendance-record-card {% if r.status == 'Half Day' %}is-half{% elif r.status == 'Absent' %}is-absent{% endif %}">
+          <div class="attendance-record-top">
+            <div>
+              <div class="attendance-record-date">{{ r.date|date:"D, M j, Y" }}</div>
+              <div class="attendance-record-hours">{{ r.working_hours }} hrs{% if r.overtime_hours > 0 %} · OT {{ r.overtime_hours }}{% endif %}</div>
+            </div>
+            {% include "includes/attendance_status_badge.html" with r=r %}
+          </div>
+          <div class="attendance-record-grid">
+            <div>
+              <span class="label">Check-in</span>
+              <strong>{% if r.check_in %}{{ r.check_in|date:"g:i A" }}{% else %}—{% endif %}</strong>
+            </div>
+            <div>
+              <span class="label">Check-out</span>
+              <strong>{% if r.check_out %}{{ r.check_out|date:"g:i A" }}{% else %}—{% endif %}</strong>
+            </div>
+            <div>
+              <span class="label">Late</span>
+              <strong>{% if r.is_late %}Yes{% else %}No{% endif %}</strong>
+            </div>
+            <div>
+              <span class="label">Office distance</span>
+              <strong>{% if r.check_in_distance_m %}{{ r.check_in_distance_m }} m{% else %}—{% endif %}</strong>
+            </div>
+          </div>
+          {% if r.status == "Half Day" and r.is_half_day_checkin %}
+            <p class="attendance-record-note mb-0">Checked in after 12:30 PM</p>
+          {% endif %}
+        </article>
+      {% empty %}
+        <div class="text-muted text-center py-4">No attendance records for this month.</div>
+      {% endfor %}
+    </div>
   </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const form = document.getElementById("attendanceFilterForm");
+    const btn = document.getElementById("viewRecordsBtn");
+    if (!form || !btn) return;
+
+    form.addEventListener("submit", function () {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Loading...';
+    });
+  })();
+</script>
 {% endblock %}

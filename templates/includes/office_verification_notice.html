@@ -1,10 +1,12 @@
 {% if office_verification_required %}
 <div class="alert alert-info border-0 small mb-3">
   {% if office_gps_required and not office_ip_required %}
-    You must be <strong>physically at the office</strong> to sign in or mark attendance.
+    You must be <strong>physically at the company campus</strong> to sign in or mark attendance.
+    If you are outside campus, access will be blocked with a message.
     WiFi or mobile data both work — your browser will ask for <strong>location permission</strong>.
   {% elif office_gps_required %}
-    You must be within the office area. Your browser will ask for location permission.
+    You must be within the company campus. Outside campus, sign-in and attendance are blocked.
+    Your browser will ask for location permission.
   {% elif office_ip_required %}
     Office network connection is required.
   {% endif %}

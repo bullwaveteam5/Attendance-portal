@@ -1,69 +1,120 @@
 {% extends "base.html" %}
 {% block title %}{{ title }}{% endblock %}
-{% block content %}
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <h1 class="h5 mb-0">{{ title }}</h1>
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_list' %}">Back</a>
-  </div>
-
-  <div class="card">
-    <div class="card-body">
-      <form method="post" novalidate>
-        {% csrf_token %}
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Employee ID</label>
-            {{ form.employee_id }}
-            {{ form.employee_id.errors }}
-          </div>
-          <div class="col-md-8">
-            <label class="form-label">Name</label>
-            {{ form.username }}
-            {{ form.username.errors }}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Email</label>
-            {{ form.email }}
-            {{ form.email.errors }}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Department</label>
-            {{ form.department }}
-            {{ form.department.errors }}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Role</label>
-            {{ form.role }}
-            {{ form.role.errors }}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Date of birth</label>
-            {{ form.date_of_birth }}
-            {{ form.date_of_birth.errors }}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Anniversary date</label>
-            {{ form.anniversary_date }}
-            {{ form.anniversary_date.errors }}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Password</label>
-            {{ form.password }}
-            <div class="form-text">{{ form.password.help_text }}</div>
-            {{ form.password.errors }}
-          </div>
-          <div class="col-12">
-            <div class="form-check">
-              {{ form.is_active }}
-              <label class="form-check-label">Active</label>
-            </div>
-          </div>
-        </div>
-        <div class="mt-3">
-          <button class="btn btn-primary" type="submit">Save</button>
-        </div>
-      </form>
-    </div>
+{% block page_heading %}{{ title }}{% endblock %}
+{% block page_subheading %}
+  {% if employee %}
+    <p class="app-page-subtitle mb-0">{{ employee.employee_id }} — {{ employee.username }} · edit profile (leave data stays linked)</p>
+  {% else %}
+    <p class="app-page-subtitle mb-0">Create a new employee record in the database</p>
+  {% endif %}
+{% endblock %}
+{% block page_actions %}
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_list' %}">← Employees</a>
+    {% if employee %}
+      <a class="btn btn-outline-success btn-sm" href="{% url 'hr_employee_record' employee.pk %}">Full record</a>
+      <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_employee_leave_history' employee.pk %}">Leave</a>
+    {% endif %}
   </div>
 {% endblock %}
 
+{% block content %}
+  <div class="row g-4">
+    <div class="col-12 {% if employee %}col-lg-7{% endif %}">
+      <div class="content-card">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Employee ID</label>
+              {{ form.employee_id }}
+              {{ form.employee_id.errors }}
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Name</label>
+              {{ form.username }}
+              {{ form.username.errors }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              {{ form.email }}
+              {{ form.email.errors }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Department</label>
+              {{ form.department }}
+              {{ form.department.errors }}
+            </div>
+            {% if not employee %}
+              <div class="col-md-6">
+                <label class="form-label">Role</label>
+                {{ form.role }}
+                {{ form.role.errors }}
+              </div>
+            {% else %}
+              {{ form.role }}
+            {% endif %}
+            <div class="col-md-6">
+              <label class="form-label">Date of birth</label>
+              {{ form.date_of_birth }}
+              {{ form.date_of_birth.errors }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Anniversary date</label>
+              {{ form.anniversary_date }}
+              {{ form.anniversary_date.errors }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Password</label>
+              {{ form.password }}
+              <div class="form-text">{{ form.password.help_text }}</div>
+              {{ form.password.errors }}
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                {{ form.is_active }}
+                <label class="form-check-label">Active</label>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <button class="btn btn-primary" type="submit">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if employee and leave_summary %}
+      <div class="col-12 col-lg-5">
+        <div class="content-card mb-3">
+          <h2 class="content-card-title">Leave balance (live)</h2>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><div class="mini-stat"><span>Remaining</span><strong class="text-success">{{ leave_summary.balance.remaining }}</strong></div></div>
+            <div class="col-6"><div class="mini-stat"><span>Used</span><strong class="text-warning">{{ leave_summary.balance.used_leaves }}</strong></div></div>
+          </div>
+          <p class="small text-muted mb-2">{{ leave_summary.month_label }} · Absences {{ leave_summary.absences_this_month }} · On leave {{ leave_summary.on_leave_days }}</p>
+          <a class="btn btn-outline-success btn-sm w-100" href="{% url 'hr_employee_record' employee.pk %}">Open full employee record</a>
+        </div>
+        <div class="content-card">
+          <h2 class="content-card-title">Recent leave applications</h2>
+          <ul class="list-unstyled small mb-0">
+            {% for lr in leave_requests %}
+              <li class="d-flex justify-content-between gap-2 mb-2">
+                <span>{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j" }} · {{ lr.get_leave_type_display }}</span>
+                {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+              </li>
+            {% empty %}
+              <li class="text-muted">No leave applications yet.</li>
+            {% endfor %}
+          </ul>
+          <a class="btn btn-outline-primary btn-sm w-100 mt-3" href="{% url 'hr_leave_request_list' %}?employee={{ employee.employee_id }}">All leave for this employee</a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

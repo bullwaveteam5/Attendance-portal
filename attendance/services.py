@@ -162,6 +162,12 @@ def check_in(
 ) -> Attendance:
     now = _local_now()
     today = now.date()
+
+    from .leave_services import has_approved_leave_on
+
+    if has_approved_leave_on(employee=employee, att_date=today):
+        raise AttendanceError("You are on approved leave today. Check-in is not allowed.")
+
     metrics = compute_attendance_metrics(check_in=now, check_out=None, policy=policy)
 
     try:
@@ -176,6 +182,9 @@ def check_in(
         )
     except IntegrityError as e:
         raise AttendanceError("Attendance already exists for today.") from e
+
+    if attendance.status == AttendanceStatus.ON_LEAVE:
+        raise AttendanceError("You are on approved leave today. Check-in is not allowed.")
 
     if not created and attendance.check_in:
         raise AttendanceError("You have already checked in today.")
@@ -207,6 +216,9 @@ def check_out(
         attendance = Attendance.objects.select_for_update().get(employee=employee, date=today)
     except Attendance.DoesNotExist as e:
         raise AttendanceError("You must check in before checking out.") from e
+
+    if attendance.status == AttendanceStatus.ON_LEAVE:
+        raise AttendanceError("You are on approved leave today. Check-out is not allowed.")
 
     if not attendance.check_in:
         raise AttendanceError("You must check in before checking out.")
@@ -256,7 +268,21 @@ def regularize_attendance(
     if check_out and timezone.is_naive(check_out):
         check_out = timezone.make_aware(check_out, timezone.get_current_timezone())
 
+    from .leave_services import (
+        deduct_paid_leave_for_absence,
+        has_approved_leave_on,
+        reverse_leave_deduction_for_date,
+    )
+
+    if has_approved_leave_on(employee=employee, att_date=att_date):
+        raise AttendanceError(
+            "Cannot regularize this date — employee has an approved leave request covering it."
+        )
+
     attendance, _ = Attendance.objects.select_for_update().get_or_create(employee=employee, date=att_date)
+    if attendance.status == AttendanceStatus.ON_LEAVE:
+        raise AttendanceError("Cannot regularize — attendance is already marked On Leave.")
+
     attendance.check_in = check_in
     if check_out is not None:
         attendance.check_out = check_out
@@ -270,8 +296,9 @@ def regularize_attendance(
     attendance.save()
 
     if attendance.status == AttendanceStatus.ABSENT:
-        from .leave_services import deduct_paid_leave_for_absence
-
         deduct_paid_leave_for_absence(attendance=attendance)
+    else:
+        # Present / Half Day / Full Day — undo any prior absence deduction for this date.
+        reverse_leave_deduction_for_date(employee=employee, att_date=att_date)
 
     return attendance

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Leave — {{ employee.employee_id }}{% endblock %}
+{% block page_heading %}Leave History — {{ employee.username }}{% endblock %}
+{% block page_subheading %}
+  <p class="app-page-subtitle mb-0">{{ employee.employee_id }} · {{ employee.department|default:"No department" }} · complete leave record</p>
+{% endblock %}
+{% block page_actions %}
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'hr_leave_request_list' %}?employee={{ employee.employee_id }}">← Leave list</a>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_employee_portal' employee.pk %}#leaves">Open portal</a>
+    <a class="btn btn-outline-info btn-sm" href="{% url 'employee_update' employee.pk %}">Edit employee</a>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><div class="mini-stat"><span>Allocation ({{ leave_summary.month_label }})</span><strong>{{ leave_summary.balance.monthly_allocation }}</strong></div></div>
+    <div class="col-6 col-lg-3"><div class="mini-stat"><span>Carried</span><strong>{{ leave_summary.balance.carried_forward }}</strong></div></div>
+    <div class="col-6 col-lg-3"><div class="mini-stat"><span>Used</span><strong class="text-warning">{{ leave_summary.balance.used_leaves }}</strong></div></div>
+    <div class="col-6 col-lg-3"><div class="mini-stat"><span>Remaining</span><strong class="text-success">{{ leave_summary.balance.remaining }}</strong></div></div>
+  </div>
+
+  <div class="content-card mb-3">
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-sm {% if status_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?status=all">All</a>
+      <a class="btn btn-sm {% if status_filter == 'pending' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?status=pending">Pending</a>
+      <a class="btn btn-sm {% if status_filter == 'approved' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?status=approved">Approved</a>
+      <a class="btn btn-sm {% if status_filter == 'rejected' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?status=rejected">Rejected</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+      <div class="content-card h-100">
+        <h2 class="content-card-title">Leave applications</h2>
+        <div class="table-responsive">
+          <table class="table table-portal table-sm align-middle mb-0">
+            <thead>
+              <tr><th>Dates</th><th>Days</th><th>Type</th><th>Status</th><th>Submitted</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for lr in leave_requests %}
+                <tr>
+                  <td>{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</td>
+                  <td>{{ lr.duration_days }}</td>
+                  <td>{{ lr.get_leave_type_display }}</td>
+                  <td>
+                    {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+                    {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                    {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+                  </td>
+                  <td class="text-muted small">{{ lr.created_at|date:"M j, Y" }}</td>
+                  <td class="text-end">
+                    <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">
+                      {% if lr.status == 'pending' %}Review{% else %}View{% endif %}
+                    </a>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="6" class="text-muted text-center py-4">No leave applications for this employee.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="content-card mb-3">
+        <h2 class="content-card-title">This month</h2>
+        <p class="small text-muted mb-2">Absences: <strong>{{ leave_summary.absences_this_month }}</strong> · On leave: <strong>{{ leave_summary.on_leave_days }}</strong></p>
+        <ul class="list-unstyled small mb-0">
+          {% for d in leave_summary.deductions %}
+            <li class="mb-1">{{ d.date|date:"M j, Y" }} — {% if d.attendance.status == "On Leave" %}Approved leave{% else %}Absence{% endif %}</li>
+          {% empty %}
+            <li class="text-muted">No deductions this month.</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="content-card">
+        <h2 class="content-card-title">Monthly balances</h2>
+        <div class="table-responsive">
+          <table class="table table-portal table-sm mb-0">
+            <thead><tr><th>Month</th><th>Used</th><th>Left</th></tr></thead>
+            <tbody>
+              {% for b in balances %}
+                <tr>
+                  <td>{{ b.year }}-{{ b.month|stringformat:"02d" }}</td>
+                  <td>{{ b.used_leaves }}</td>
+                  <td class="text-success">{{ b.remaining }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="text-muted">No balance rows yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

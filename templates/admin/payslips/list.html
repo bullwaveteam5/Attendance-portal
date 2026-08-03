@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Pay Slips{% endblock %}
 {% block page_heading %}Employee Pay Slips{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Uploaded pay slips available to employees</p>{% endblock %}
 {% block page_actions %}
   <a class="btn btn-success btn-sm" href="{% url 'hr_payslip_upload' %}"><i class="bi bi-upload me-1"></i>Upload Pay Slip</a>
 {% endblock %}
 
 {% block content %}
   <div class="content-card">
-    <div class="table-responsive">
+    <div class="table-responsive d-none d-md-block">
       <table class="table table-portal table-sm align-middle mb-0">
         <thead>
-          <tr><th>Employee</th><th>Period</th><th>Title</th><th>Uploaded by</th><th>Date</th></tr>
+          <tr><th>Employee</th><th>Period</th><th>Title</th><th>Uploaded by</th><th>Date</th><th></th></tr>
         </thead>
         <tbody>
           {% for slip in payslips %}
@@ -20,12 +21,29 @@
               <td>{{ slip.title|default:"—" }}</td>
               <td class="text-muted">{{ slip.uploaded_by.employee_id|default:"—" }}</td>
               <td class="text-muted small">{{ slip.uploaded_at|date:"M d, Y" }}</td>
+              <td class="text-end">
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'hr_payslip_download' slip.pk %}">Download</a>
+              </td>
             </tr>
           {% empty %}
-            <tr><td colspan="5" class="text-muted text-center py-4">No pay slips uploaded yet.</td></tr>
+            <tr><td colspan="6" class="text-muted text-center py-4">No pay slips uploaded yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
+    </div>
+
+    <div class="data-card-list d-md-none">
+      {% for slip in payslips %}
+        <article class="data-item-card">
+          <div class="data-item-title">{{ slip.employee.username }}</div>
+          <div class="data-item-meta mb-1">{{ slip.employee.employee_id }} · {{ slip.period_label }}</div>
+          <div class="small">{{ slip.title|default:"Salary Slip" }}</div>
+          <div class="small text-muted mt-2">Uploaded {{ slip.uploaded_at|date:"M d, Y" }} by {{ slip.uploaded_by.employee_id|default:"HR" }}</div>
+          <a class="btn btn-outline-primary btn-sm mt-2 w-100" href="{% url 'hr_payslip_download' slip.pk %}">Download</a>
+        </article>
+      {% empty %}
+        <p class="text-muted text-center mb-0 py-3">No pay slips uploaded yet.</p>
+      {% endfor %}
     </div>
   </div>
 {% endblock %}

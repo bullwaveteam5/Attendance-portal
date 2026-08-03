@@ -112,8 +112,8 @@ def verify_office_access(
         )
         if distance_m > office.allowed_radius_meters:
             raise LocationVerificationError(
-                f"You are outside the office area ({distance_m:.0f} m away; "
-                f"allowed radius is {office.allowed_radius_meters} m)."
+                "Your current location is not near the company office, so you cannot access "
+                "the portal. Please try again when you are at the campus."
             )
 
     if office.ip_verification_enabled:

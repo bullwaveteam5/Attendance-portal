@@ -54,6 +54,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "dashboard.middleware.NoStoreAuthenticatedMiddleware",
 ]
 
 
@@ -79,22 +80,32 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 
-# Railway MySQL Database
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.environ.get("MYSQLDATABASE"),
-        "USER": os.environ.get("MYSQLUSER"),
-        "PASSWORD": os.environ.get("MYSQLPASSWORD"),
-        "HOST": os.environ.get("MYSQLHOST"),
-        "PORT": os.environ.get("MYSQLPORT", "3306"),
-        "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
-        "CONN_MAX_AGE": 60,
+# Database — Railway uses MYSQL* env vars; local .env uses DB_* (see .env.example).
+DB_ENGINE = os.environ.get("DB_ENGINE", "django.db.backends.mysql")
+
+if DB_ENGINE == "django.db.backends.sqlite3":
+    DATABASES = {
+        "default": {
+            "ENGINE": DB_ENGINE,
+            "NAME": BASE_DIR / os.environ.get("SQLITE_DB_NAME", "db.sqlite3"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": DB_ENGINE,
+            "NAME": os.environ.get("MYSQLDATABASE") or os.environ.get("DB_NAME", "attendance_db"),
+            "USER": os.environ.get("MYSQLUSER") or os.environ.get("DB_USER", "root"),
+            "PASSWORD": os.environ.get("MYSQLPASSWORD") or os.environ.get("DB_PASSWORD", ""),
+            "HOST": os.environ.get("MYSQLHOST") or os.environ.get("DB_HOST", "127.0.0.1"),
+            "PORT": os.environ.get("MYSQLPORT") or os.environ.get("DB_PORT", "3306"),
+            "OPTIONS": {
+                "charset": "utf8mb4",
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+            "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
+        }
+    }
 
 
 AUTH_PASSWORD_VALIDATORS = [

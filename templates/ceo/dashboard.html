@@ -13,10 +13,15 @@
       <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Present today</div><div class="h4 mb-0">{{ present_today }}</div></div></div></div>
       <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Absent today</div><div class="h4 mb-0">{{ absent_today }}</div></div></div></div>
       <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending regularization</div><div class="h4 mb-0">{{ pending_regularizations }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending leave</div><div class="h4 mb-0 text-warning">{{ pending_leave_count }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Pending holidays</div><div class="h4 mb-0">{{ pending_holiday_count }}</div></div></div></div>
+      <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">On leave today</div><div class="h4 mb-0 text-info">{{ on_leave_today }}</div></div></div></div>
       <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Praise letters (month)</div><div class="h4 mb-0">{{ praise_letters_month }}</div></div></div></div>
       <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">Your letters sent</div><div class="h4 mb-0">{{ praise_letters_sent }}</div></div></div></div>
       <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="text-muted small">HR overrides</div><div class="h4 mb-0">{{ ceo_overrides }}</div></div></div></div>
     </div>
+    {% include "includes/today_attendance_board.html" with today_attendance_board=today_attendance_board today=today title="Live Employee Check-in / Check-out" %}
+
     <div class="content-card">
       <h2 class="content-card-title">Download Attendance (CSV)</h2>
       <form class="row g-2 align-items-end" method="get" action="{% url 'ceo_export_attendance_csv' %}">
@@ -35,6 +40,7 @@
         <div class="col-12 col-md-6 d-flex flex-wrap gap-2">
           <button class="btn btn-success btn-sm" type="submit">Download Month CSV</button>
           <a class="btn btn-outline-success btn-sm" href="{% url 'ceo_export_attendance_csv' %}?scope=all">Download All CSV</a>
+          <a class="btn btn-outline-primary btn-sm" href="{% url 'admin_attendance_list' %}">Open attendance records</a>
         </div>
       </form>
     </div>
@@ -63,8 +69,47 @@
   </div>
 
   <div class="app-panel" id="panel-pending">
+    <div class="content-card mb-4">
+      <div class="d-flex justify-content-between mb-3">
+        <h2 class="content-card-title mb-0">Pending Holidays (HR + CEO dual approve)</h2>
+        <a class="btn btn-outline-warning btn-sm" href="{% url 'holiday_list' %}?status=pending">Open</a>
+      </div>
+      <ul class="mb-0 small">
+        {% for h in pending_holidays %}
+          <li class="mb-1">{{ h.date|date:"M j, Y" }} — {{ h.name }}
+            · HR {% if h.hr_approved %}✓{% else %}waiting{% endif %}
+            · CEO {% if h.ceo_approved %}✓{% else %}waiting{% endif %}
+          </li>
+        {% empty %}
+          <li class="text-muted">No pending holiday approvals.</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="content-card mb-4">
+      <div class="d-flex justify-content-between mb-3">
+        <h2 class="content-card-title mb-0">Pending Leave Approvals</h2>
+        <a class="btn btn-warning btn-sm" href="{% url 'hr_leave_request_list' %}?status=pending">Leave Records</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-portal table-sm align-middle mb-0">
+          <thead><tr><th>Employee</th><th>Dates</th><th>Type</th><th></th></tr></thead>
+          <tbody>
+            {% for lr in pending_leave_requests %}
+              <tr>
+                <td>{{ lr.employee.employee_id }} — {{ lr.employee.username }}</td>
+                <td class="small">{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</td>
+                <td>{{ lr.get_leave_type_display }}</td>
+                <td class="text-end"><a class="btn btn-primary btn-sm" href="{% url 'hr_leave_request_review' lr.pk %}">Approve / Reject</a></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted">No pending leave requests.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
     <div class="content-card">
-      <h2 class="content-card-title">Pending HR Review</h2>
+      <h2 class="content-card-title">Pending Regularization</h2>
       <div class="table-responsive">
         <table class="table table-portal table-sm align-middle mb-0">
           <thead><tr><th>Employee</th><th>Date</th><th></th></tr></thead>

@@ -1,14 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Leave Requests{% endblock %}
 {% block page_heading %}Leave Requests{% endblock %}
-{% block page_subheading %}<p class="app-page-subtitle mb-0">Inform HR about planned leave</p>{% endblock %}
+{% block page_subheading %}<p class="app-page-subtitle mb-0">Pending requests go to HR &amp; CEO Leave Records for approval. Status updates here after they decide.</p>{% endblock %}
 {% block page_actions %}
-  <a class="btn btn-success btn-sm" href="{% url 'leave_request_create' %}"><i class="bi bi-plus-lg me-1"></i>Request Leave</a>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'employee_dashboard' %}#leaves">Leave Balance</a>
+    <a class="btn btn-success btn-sm" href="{% url 'leave_request_create' %}"><i class="bi bi-plus-lg me-1"></i>Request Leave</a>
+  </div>
 {% endblock %}
 
 {% block content %}
   <div class="content-card">
-    <div class="table-responsive">
+    <div class="table-responsive d-none d-md-block">
       <table class="table table-portal table-sm align-middle mb-0">
         <thead>
           <tr><th>From</th><th>To</th><th>Type</th><th>Reason</th><th>Status</th><th>HR Note</th></tr>
@@ -16,8 +19,8 @@
         <tbody>
           {% for lr in leave_requests %}
             <tr>
-              <td>{{ lr.start_date }}</td>
-              <td>{{ lr.end_date }}</td>
+              <td>{{ lr.start_date|date:"M j, Y" }}</td>
+              <td>{{ lr.end_date|date:"M j, Y" }}</td>
               <td>{{ lr.get_leave_type_display }}</td>
               <td class="text-muted">{{ lr.reason|truncatechars:50 }}</td>
               <td>
@@ -32,6 +35,24 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+
+    <div class="data-card-list d-md-none">
+      {% for lr in leave_requests %}
+        <article class="data-item-card">
+          <div class="d-flex justify-content-between gap-2 mb-2">
+            <div class="data-item-title">{{ lr.start_date|date:"M j" }} – {{ lr.end_date|date:"M j, Y" }}</div>
+            {% if lr.status == 'pending' %}<span class="badge bg-warning text-dark">Pending</span>
+            {% elif lr.status == 'approved' %}<span class="badge bg-success">Approved</span>
+            {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+          </div>
+          <div class="data-item-meta mb-1">{{ lr.get_leave_type_display }}</div>
+          <div class="small">{{ lr.reason|truncatechars:140 }}</div>
+          {% if lr.hr_note %}<div class="small text-muted mt-2">HR note: {{ lr.hr_note }}</div>{% endif %}
+        </article>
+      {% empty %}
+        <p class="text-muted text-center mb-0 py-3">No leave requests yet.</p>
+      {% endfor %}
     </div>
   </div>
 {% endblock %}
